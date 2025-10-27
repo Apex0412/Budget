@@ -247,10 +247,34 @@ docker exec -it $(docker compose ps -q app) bash -lc "composer install && php da
 
 **Шаг 3.** Сайт доступен на `http://localhost:8080`. Логи: `docker compose logs -f`.
 
-**Импорт схемы вручную:**
+**Шаг 4.** Импорт схемы вручную (если нужно):
 ```bash
 docker exec -i $(docker compose ps -q db) mysql -u root -proot finanses < schema.sql
 ```
+
+#### Docker на Windows (PowerShell, автоматический запуск)
+Если не хотите вводить команды по одной, используйте готовый скрипт.
+
+1. Откройте **PowerShell от имени администратора** и перейдите в корень проекта (папка, где лежит `docker-compose.yml`).
+2. Разрешите выполнение локальных скриптов (нужно один раз):
+   ```powershell
+   Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+   ```
+3. Запустите сценарий автоматической сборки и запуска контейнеров:
+   ```powershell
+   .\finanses\scripts\windows\docker-up.ps1
+   ```
+   Скрипт последовательно выполнит `docker compose down`, `build`, `up -d`, а затем запустит установку зависимостей и миграции внутри контейнера. В конце появится сообщение с адресом `http://localhost:8080`.
+4. Чтобы остановить окружение, выполните:
+   ```powershell
+   docker compose down
+   ```
+
+> 💡 Если проект находится в другой директории, передайте путь явно:
+> ```powershell
+> .\finanses\scripts\windows\docker-up.ps1 -ProjectPath "D:\\projects\\Budget\\finanses"
+> ```
+> Скрипт проверит наличие Docker Desktop и подскажет, если контейнеры не стартовали.
 
 ---
 
