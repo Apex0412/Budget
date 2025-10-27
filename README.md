@@ -91,6 +91,11 @@ sudo systemctl restart apache2
 ```powershell
 composer -V
 ```
+Дополнительно убедитесь, что расширение **gd** активно (нужно для PDF):
+```powershell
+php -m | findstr /I gd
+```
+Если строка не появилась, откройте `C:\xampp\php\php.ini`, раскомментируйте `extension=gd` и перезапустите Apache.
 
 **Шаг 5.** Откройте `http://localhost/phpmyadmin`, создайте БД `finanses`. Импортируйте `schema.sql` или выполните миграции:
 ```bash
@@ -140,6 +145,11 @@ sudo apt install -y apache2 mysql-server php8.1 php8.1-cli libapache2-mod-php8.1
     php8.1-mysql php8.1-xml php8.1-mbstring php8.1-curl php8.1-zip php8.1-gd composer unzip git
 sudo service mysql start
 ```
+Проверьте, что модуль **gd** подключён:
+```bash
+php -m | grep -i gd
+```
+Если модуль не найден, выполните `sudo apt install php8.1-gd` и перезапустите Apache.
 
 **Шаг 4.** Скачайте проект:
 ```bash
@@ -195,6 +205,7 @@ sudo systemctl restart apache2
 
 ### C. Linux (Ubuntu/Debian)
 Повторите шаги WSL, исключая особенности Windows. Используйте `/var/www/html/finanses`, создайте `.env`, выполните миграции, настройте виртуальный хост Apache и перезапустите службу.
+Проверьте расширение **gd** (`php -m | grep -i gd`) и при необходимости установите `sudo apt install php8.1-gd`.
 
 ---
 
@@ -207,6 +218,11 @@ brew install php apache2 mysql composer git
 sudo apachectl start
 brew services start mysql
 ```
+Проверьте модуль **gd**:
+```bash
+php -m | grep -i gd
+```
+Если модуль не найден, выполните `brew reinstall php` — GD ставится вместе с PHP.
 
 **Шаг 3.** Каталог проекта:
 ```bash
@@ -246,6 +262,10 @@ docker compose build
 docker compose up -d
 docker compose ps
 docker exec -it $(docker compose ps -q app) bash -lc "composer install && php database/cli.php migrate && php database/cli.php seed"
+```
+Проверьте, что в контейнере активен модуль **gd** (используется генератором PDF):
+```bash
+docker compose exec app php -m | grep -i gd
 ```
 
 **Шаг 3.** Сайт доступен на `http://localhost:8080`. Логи: `docker compose logs -f`.

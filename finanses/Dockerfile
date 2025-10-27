@@ -4,8 +4,14 @@ FROM php:8.1-apache
 # устанавливать зависимости внутри контейнера без дополнительной настройки на хосте.
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-RUN apt-get update && apt-get install -y libzip-dev zip unzip git \
-    && docker-php-ext-install pdo pdo_mysql mysqli \
+RUN apt-get update && apt-get install -y \
+        libzip-dev \
+        zip unzip git \
+        libfreetype6-dev \
+        libjpeg62-turbo-dev \
+        libpng-dev \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg \
+    && docker-php-ext-install pdo pdo_mysql mysqli gd \
     && a2enmod rewrite
 
 ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
