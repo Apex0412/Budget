@@ -35,6 +35,9 @@ RUN apt-get update && apt-get install -y \
 
 ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
 
+COPY docker/entrypoint.sh /usr/local/bin/finanses-entrypoint
+RUN chmod +x /usr/local/bin/finanses-entrypoint
+
 RUN sed -ri 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/000-default.conf \
     && sed -ri 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf \
     && sed -ri 's/AllowOverride None/AllowOverride All/g' /etc/apache2/apache2.conf
@@ -44,3 +47,6 @@ WORKDIR /var/www/html
 COPY . /var/www/html
 
 RUN chown -R www-data:www-data storage
+
+ENTRYPOINT ["finanses-entrypoint"]
+CMD ["apache2-foreground"]

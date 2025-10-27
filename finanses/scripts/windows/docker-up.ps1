@@ -80,15 +80,24 @@ Invoke-Compose -Args @('up', '-d') || exit 1
 
 Invoke-Compose -Args @('ps')
 
-$appId = Invoke-Compose -Args @('ps', '-q', 'app')
-$appId = ($appId | Where-Object { $_ -and $_.Trim() -ne '' } | Select-Object -First 1)
-if (-not $appId) {
-    Write-Error "Контейнер приложения не найден. Проверьте вывод 'docker compose ps'."
-    exit 1
-}
+Write-Host "[FINANSES] Ожидаем готовность приложения (healthcheck)..."
+$healthUrl = 'http://localhost:8080/api/health.php?type=app'
+$maxAttempts = 40
+for ($i = 1; $i -le $maxAttempts; $i++) {
+    try {
+        $response = Invoke-WebRequest -Uri $healthUrl -UseBasicParsing -TimeoutSec 5
+        if ($response.StatusCode -eq 200) {
+            Write-Host "[FINANSES] Приложение ответило успешно на попытке $i"
+            break
+        }
+    } catch {
+        Start-Sleep -Seconds 3
+    }
 
-Write-Host "[FINANSES] Устанавливаем PHP-зависимости и выполняем миграции..."
-docker exec -it $appId bash -lc "composer install --no-interaction --prefer-dist && php database/cli.php migrate && php database/cli.php seed" || exit 1
+    if ($i -eq $maxAttempts) {
+        Write-Warning "Превышено время ожидания healthcheck. Проверьте 'docker compose logs -f'."
+    }
+}
 
 Write-Host "[FINANSES] Готово! Откройте http://localhost:8080 в браузере."
 

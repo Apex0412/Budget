@@ -17,10 +17,10 @@ rollback:
 $(PHP) database/cli.php rollback
 
 up:
-docker compose up -d
-docker compose ps
-docker exec -it $$(docker compose ps -q app) bash -lc "composer install && php database/cli.php migrate && php database/cli.php seed"
-echo "Сервис доступен: http://localhost:8080"
+	docker compose up --build -d
+	docker compose ps
+	@echo "Откройте 'docker compose logs -f app' чтобы увидеть автоматическую установку."
+	@echo "Сервис будет доступен после сообщений entrypoint: http://localhost:8080"
 
 down:
 docker compose down

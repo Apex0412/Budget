@@ -10,14 +10,13 @@
 ```bash
 git clone https://github.com/Apex0412/Budget.git finanses
 cd finanses/finanses
-cp .env.example .env
-# Отредактируйте APP_URL, креды БД
+cp .env.example .env  # при необходимости задайте PROD-параметры (APP_URL, креды и т.п.)
 sed -i 's/APP_ENV=local/APP_ENV=prod/' .env
-docker compose up -d --build
-docker compose exec app composer install --no-dev --optimize-autoloader
-docker compose exec app php database/cli.php migrate
-docker compose exec app php database/cli.php seed
+docker compose up --build -d
+docker compose logs -f app
 ```
+- entrypoint автоматически установит зависимости, выполнит миграции и сиды; после появления сообщения `Database already initialised` приложение готово.
+- для production-оптимизации выполните: `docker compose exec app composer install --no-dev --optimize-autoloader`.
 - Настройте обратный прокси (nginx/Traefik) для HTTPS.
 - Логи Apache/PHP доступны через `docker compose logs app`, MySQL — `docker compose logs db`.
 
@@ -79,7 +78,6 @@ git pull origin work
 composer install --no-dev --optimize-autoloader
 php database/cli.php migrate
 php database/cli.php seed
-php artisan cache:clear  # не требуется, но очистите кэш если добавите
 ```
 
 ## Безопасность в продакшене

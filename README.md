@@ -44,10 +44,9 @@
 ### Docker (рекомендуется)
 ```bash
 bash <(curl -fsSL https://get.docker.com)
-docker compose up -d
-docker compose ps
-docker exec -it $(docker compose ps -q app) bash -lc "composer install && php database/cli.php migrate && php database/cli.php seed"
-# Сайт будет доступен: http://localhost:8080
+docker compose up --build -d
+docker compose logs -f app
+# После появления сообщения "[entrypoint] Database already initialised" откройте http://localhost:8080
 ```
 
 ### WSL/Ubuntu (root-права)
@@ -265,21 +264,22 @@ DB_PASS=
 ### E. Docker
 **Шаг 1.** Установите Docker Desktop (Windows/macOS) или Docker Engine (Linux).
 
-**Шаг 2.** В каталоге проекта выполните (при первом запуске или после изменения `Dockerfile` всегда пересобирайте образ):
+**Шаг 2.** Поднимите стек (образ пересобирается автоматически при изменении `Dockerfile`):
 ```bash
-docker compose build
-docker compose up -d
-docker compose ps
-docker exec -it $(docker compose ps -q app) bash -lc "composer install && php database/cli.php migrate && php database/cli.php seed"
+docker compose up --build -d
+docker compose logs -f app
 ```
-Проверьте, что в контейнере активны расширения **gd, intl, mbstring, bcmath, exif, soap, zip** (для PDF, локализации и пр.):
+Оставьте вторую команду открытой, пока не увидите сообщения `Installing Composer dependencies`, `Running database migrations and seeders` и `Database already initialised` — контейнер сам установит зависимости, применит миграции и создаст администратора `admin/admin123`.
+
+**Шаг 3.** (Необязательно) Убедитесь, что приложение отвечает:
 ```bash
-docker compose exec app php -m | egrep -i 'gd|intl|mbstring|bcmath|exif|soap|zip'
+curl -f http://localhost:8080/api/health.php?type=app
 ```
+В ответ ожидайте JSON `{"ok":true,"status":"app_ok"}`. Проверка базы: `curl -f http://localhost:8080/api/health.php?type=db`.
 
-**Шаг 3.** Сайт доступен на `http://localhost:8080`. Логи: `docker compose logs -f`.
+**Шаг 4.** Откройте `http://localhost:8080` в браузере — вы увидите форму входа. Все необходимые расширения (gd, intl, mbstring, bcmath, exif, soap, zip, gmp, pcntl и др.) уже установлены в образе.
 
-**Шаг 4.** Импорт схемы вручную (если нужно):
+**Шаг 5.** При необходимости ручного повторного импорта БД используйте:
 ```bash
 docker exec -i $(docker compose ps -q db) mysql -u root -proot finanses < schema.sql
 ```
@@ -297,7 +297,7 @@ docker exec -i $(docker compose ps -q db) mysql -u root -proot finanses < schema
    ```powershell
    .\finanses\scripts\windows\docker-up.ps1
    ```
-   Скрипт сам определит, доступен ли `docker compose` или `docker-compose`, выполнит `down`, `build`, `up -d`, затем внутри контейнера запустит `composer install`, `php database/cli.php migrate`, `php database/cli.php seed` и покажет ссылку `http://localhost:8080`.
+   Скрипт сам определит, доступен ли `docker compose` или `docker-compose`, выполнит `down`, `build`, `up -d`, дождётся успешного healthcheck и выведет ссылку `http://localhost:8080`.
 4. Нужно пересобрать образ без кеша? Добавьте флаг:
    ```powershell
    .\finanses\scripts\windows\docker-up.ps1 -NoCache
@@ -356,6 +356,7 @@ DB_NAME=finanses
 DB_USER=finanses
 DB_PASS=finanses
 ```
+> В контейнере файл `.env` создаётся автоматически из шаблона `.env.docker`, поэтому поднимать стек можно без ручного копирования настроек.
 
 **XAMPP / Linux / macOS:**
 ```
