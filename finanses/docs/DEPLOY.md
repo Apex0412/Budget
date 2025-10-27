@@ -3,7 +3,8 @@
 ## Подготовка окружения
 1. Выберите способ: Docker, Apache, Nginx + PHP-FPM.
 2. Убедитесь в наличии PHP ≥ 8.1, MySQL ≥ 8.0, Composer ≥ 2.x.
-3. Настройте резервирование портов (HTTP 80/8080, MySQL 3306).
+3. Активируйте расширения PHP `bcmath`, `exif`, `gd`, `intl`, `mbstring`, `soap`, `zip` (рекомендуются также `gmp`, `pcntl`, `sodium`).
+4. Настройте резервирование портов (HTTP 80/8080, MySQL 3306).
 
 ## Docker (production-ready)
 ```bash
@@ -21,7 +22,7 @@ docker compose exec app php database/cli.php seed
 - Логи Apache/PHP доступны через `docker compose logs app`, MySQL — `docker compose logs db`.
 
 ## Bare-metal Apache
-1. Установите Apache + PHP модуль (`libapache2-mod-php8.1`).
+1. Установите Apache + PHP модуль (`libapache2-mod-php8.1`) и включите расширения `bcmath`, `exif`, `gd`, `intl`, `mbstring`, `soap`, `zip` (пакеты `php8.1-<module>` для Debian/Ubuntu).
 2. Разверните код в `/var/www/finanses`.
 3. Создайте VirtualHost:
 ```

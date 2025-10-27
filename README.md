@@ -38,6 +38,7 @@
 - Свободный порт **80** (или 8080, 8000) и порт **3306** для MySQL.
 - Права администратора/`sudo` для установки пакетов и служб.
 - Доступ к интернету (загрузка зависимостей Composer, пакетов ОС).
+- PHP 8.1 с включёнными расширениями **bcmath, exif, gd, intl, mbstring, soap, zip** (рекомендуются также gmp, pcntl, sodium).
 
 ## ⚡ Быстрый старт
 ### Docker (рекомендуется)
@@ -52,7 +53,8 @@ docker exec -it $(docker compose ps -q app) bash -lc "composer install && php da
 ### WSL/Ubuntu (root-права)
 ```bash
 sudo apt update && sudo apt install -y apache2 mysql-server php8.1 php8.1-cli libapache2-mod-php8.1 \
-    php8.1-mysql php8.1-xml php8.1-mbstring php8.1-curl php8.1-zip php8.1-gd composer unzip git
+    php8.1-mysql php8.1-xml php8.1-mbstring php8.1-curl php8.1-zip php8.1-gd \
+    php8.1-intl php8.1-bcmath php8.1-exif php8.1-soap php8.1-gmp composer unzip git
 cd /var/www/html
 git clone https://github.com/Apex0412/Budget.git finanses
 cd finanses/finanses
@@ -91,11 +93,17 @@ sudo systemctl restart apache2
 ```powershell
 composer -V
 ```
-Дополнительно убедитесь, что расширение **gd** активно (нужно для PDF):
+Дополнительно убедитесь, что активны модули **gd, intl, mbstring, bcmath, exif, soap, zip** (они требуются приложению):
 ```powershell
-php -m | findstr /I gd
+php -m | findstr /I "gd"
+php -m | findstr /I "intl"
+php -m | findstr /I "mbstring"
+php -m | findstr /I "bcmath"
+php -m | findstr /I "exif"
+php -m | findstr /I "soap"
+php -m | findstr /I "zip"
 ```
-Если строка не появилась, откройте `C:\xampp\php\php.ini`, раскомментируйте `extension=gd` и перезапустите Apache.
+Если какое-то расширение отсутствует, откройте `C:\xampp\php\php.ini`, найдите строку вида `;extension=intl`, удалите точку с запятой и перезапустите Apache через XAMPP Control Panel.
 
 **Шаг 5.** Откройте `http://localhost/phpmyadmin`, создайте БД `finanses`. Импортируйте `schema.sql` или выполните миграции:
 ```bash
@@ -142,14 +150,15 @@ wsl --status
 ```bash
 sudo apt update && sudo apt upgrade -y
 sudo apt install -y apache2 mysql-server php8.1 php8.1-cli libapache2-mod-php8.1 \
-    php8.1-mysql php8.1-xml php8.1-mbstring php8.1-curl php8.1-zip php8.1-gd composer unzip git
+    php8.1-mysql php8.1-xml php8.1-mbstring php8.1-curl php8.1-zip php8.1-gd \
+    php8.1-intl php8.1-bcmath php8.1-exif php8.1-soap php8.1-gmp composer unzip git
 sudo service mysql start
 ```
-Проверьте, что модуль **gd** подключён:
+Проверьте, что ключевые расширения активны (**gd, intl, mbstring, bcmath, exif, soap, zip**):
 ```bash
-php -m | grep -i gd
+php -m | grep -Ei 'gd|intl|mbstring|bcmath|exif|soap|zip'
 ```
-Если модуль не найден, выполните `sudo apt install php8.1-gd` и перезапустите Apache.
+Если каких-то модулей нет, установите пакеты `sudo apt install php8.1-<module>` (например, `php8.1-intl`) и перезапустите Apache.
 
 **Шаг 4.** Скачайте проект:
 ```bash
@@ -205,7 +214,7 @@ sudo systemctl restart apache2
 
 ### C. Linux (Ubuntu/Debian)
 Повторите шаги WSL, исключая особенности Windows. Используйте `/var/www/html/finanses`, создайте `.env`, выполните миграции, настройте виртуальный хост Apache и перезапустите службу.
-Проверьте расширение **gd** (`php -m | grep -i gd`) и при необходимости установите `sudo apt install php8.1-gd`.
+Проверьте расширения **gd, intl, mbstring, bcmath, exif, soap, zip** (`php -m | grep -Ei 'gd|intl|mbstring|bcmath|exif|soap|zip'`) и при необходимости установите недостающие `sudo apt install php8.1-<module>`.
 
 ---
 
@@ -218,11 +227,11 @@ brew install php apache2 mysql composer git
 sudo apachectl start
 brew services start mysql
 ```
-Проверьте модуль **gd**:
+Проверьте, что активны модули **gd, intl, mbstring, bcmath, exif, soap, zip**:
 ```bash
-php -m | grep -i gd
+php -m | egrep -i 'gd|intl|mbstring|bcmath|exif|soap|zip'
 ```
-Если модуль не найден, выполните `brew reinstall php` — GD ставится вместе с PHP.
+Если чего-то не хватает, выполните `brew reinstall php` и перезапустите Apache — большинство расширений входит в комплект Homebrew-PHP.
 
 **Шаг 3.** Каталог проекта:
 ```bash
@@ -263,9 +272,9 @@ docker compose up -d
 docker compose ps
 docker exec -it $(docker compose ps -q app) bash -lc "composer install && php database/cli.php migrate && php database/cli.php seed"
 ```
-Проверьте, что в контейнере активен модуль **gd** (используется генератором PDF):
+Проверьте, что в контейнере активны расширения **gd, intl, mbstring, bcmath, exif, soap, zip** (для PDF, локализации и пр.):
 ```bash
-docker compose exec app php -m | grep -i gd
+docker compose exec app php -m | egrep -i 'gd|intl|mbstring|bcmath|exif|soap|zip'
 ```
 
 **Шаг 3.** Сайт доступен на `http://localhost:8080`. Логи: `docker compose logs -f`.

@@ -10,8 +10,27 @@ RUN apt-get update && apt-get install -y \
         libfreetype6-dev \
         libjpeg62-turbo-dev \
         libpng-dev \
-    && docker-php-ext-configure gd --with-freetype --with-jpeg \
-    && docker-php-ext-install pdo pdo_mysql mysqli gd \
+        libwebp-dev \
+        libxpm-dev \
+        libicu-dev \
+        libxml2-dev \
+        libgmp-dev \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp --with-xpm \
+    && docker-php-ext-install -j"$(nproc)" \
+        pdo \
+        pdo_mysql \
+        mysqli \
+        gd \
+        intl \
+        mbstring \
+        bcmath \
+        exif \
+        zip \
+        gmp \
+        soap \
+        pcntl \
+        calendar \
+    && docker-php-ext-enable opcache \
     && a2enmod rewrite
 
 ENV APACHE_DOCUMENT_ROOT=/var/www/html/public
