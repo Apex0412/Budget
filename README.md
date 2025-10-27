@@ -36,6 +36,16 @@
 └─ tools/hash_passwords.php  — CLI для пересчёта временных паролей в bcrypt
 ```
 
+## Получение исходников
+
+- **Git-клон (рекомендуется):**
+  ```bash
+  git clone https://github.com/Apex0412/Budget.git
+  cd Budget
+  ```
+- **ZIP-архив:** скачайте последнюю версию с GitHub: <https://github.com/Apex0412/Budget/archive/refs/heads/work.zip> и распакуйте содержимое в нужную директорию (например, `/var/www/finanses` или `C:\xampp\htdocs\finanses`).
+- После загрузки убедитесь, что структура каталогов сохранилась (`finanses/index.html`, `finanses/api/*.php`, `finanses/app/...`).
+
 ## Требования
 
 - PHP 8.1 или выше с расширениями: PDO (MySQL), mbstring, json, intl, gd.
@@ -50,7 +60,7 @@
    - Убедитесь, что PHP 8.1+ и MySQL 8+ доступны в панели хостинга.
 
 2. **Загрузка файлов**
-   - Скопируйте содержимое папки `finanses` в корень веб-пространства `/finanses` (через SFTP/FTP или файловый менеджер).
+   - Скопируйте содержимое папки `finanses` в корень веб-пространства `/finanses` (через SFTP/FTP или файловый менеджер). Можно использовать `git clone https://github.com/Apex0412/Budget.git` прямо на хостинге, если доступен SSH.
    - Убедитесь, что папка `pdf/` недоступна напрямую из браузера (это обеспечит `.htaccess`).
 
 3. **Зависимости**
@@ -81,7 +91,7 @@
    - Добавьте Composer: скачайте установщик с [getcomposer.org](https://getcomposer.org/) и выполните глобальную установку.
 
 2. **Копирование файлов**
-   - Расположите папку `finanses` в корне `htdocs` (например, `C:\xampp\htdocs\finanses`).
+   - Расположите папку `finanses` в корне `htdocs` (например, `C:\xampp\htdocs\finanses`). Самый простой способ — выполнить `git clone https://github.com/Apex0412/Budget.git` и перенести подкаталог `finanses`.
 
 3. **Composer**
    - Откройте терминал PowerShell/Command Prompt, перейдите в `C:\xampp\htdocs\finanses` и выполните `composer install`.
