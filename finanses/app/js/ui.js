@@ -25,6 +25,7 @@ export function renderStatusBadge(status) {
     const map = {
         draft: 'bg-slate-200 text-slate-700',
         submitted: 'bg-sky-200 text-sky-800',
+        returned: 'bg-orange-200 text-orange-800',
         approved: 'bg-emerald-200 text-emerald-800',
         rejected: 'bg-red-200 text-red-800',
         in_progress: 'bg-amber-200 text-amber-800',
@@ -33,6 +34,7 @@ export function renderStatusBadge(status) {
     const titles = {
         draft: 'Черновик',
         submitted: 'Отправлена',
+        returned: 'На доработке',
         approved: 'Согласована',
         rejected: 'Отклонена',
         in_progress: 'В работе',

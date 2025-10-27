@@ -29,7 +29,7 @@ switch ($action) {
     case 'list_active':
         ensure_method('GET');
         require_auth();
-        $stmt = $pdo->query('SELECT m.id, m.name, m.description, c.name AS category_name, u.name AS unit_name
+        $stmt = $pdo->query('SELECT m.id, m.name, m.description, m.category_id, m.unit_id, c.name AS category_name, u.name AS unit_name
             FROM materials m
             LEFT JOIN categories c ON c.id = m.category_id
             LEFT JOIN units u ON u.id = m.unit_id

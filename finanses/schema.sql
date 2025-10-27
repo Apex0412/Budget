@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS requests (
   author_id INT NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NULL,
-  status ENUM('draft','submitted','approved','rejected','in_progress','purchased') NOT NULL DEFAULT 'submitted',
+  status ENUM('draft','submitted','returned','approved','rejected','in_progress','purchased') NOT NULL DEFAULT 'submitted',
   justification TEXT NOT NULL,
   FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -80,3 +80,184 @@ INSERT INTO categories (name) VALUES
   ('Материалы') ON DUPLICATE KEY UPDATE name = VALUES(name);
 INSERT INTO categories (name) VALUES
   ('ДИП') ON DUPLICATE KEY UPDATE name = VALUES(name);
+
+INSERT INTO units (name) VALUES
+  ('шт.') ON DUPLICATE KEY UPDATE name = VALUES(name);
+INSERT INTO units (name) VALUES
+  ('компл.') ON DUPLICATE KEY UPDATE name = VALUES(name);
+INSERT INTO units (name) VALUES
+  ('упак.') ON DUPLICATE KEY UPDATE name = VALUES(name);
+INSERT INTO units (name) VALUES
+  ('пара') ON DUPLICATE KEY UPDATE name = VALUES(name);
+INSERT INTO units (name) VALUES
+  ('м') ON DUPLICATE KEY UPDATE name = VALUES(name);
+INSERT INTO units (name) VALUES
+  ('м²') ON DUPLICATE KEY UPDATE name = VALUES(name);
+INSERT INTO units (name) VALUES
+  ('м³') ON DUPLICATE KEY UPDATE name = VALUES(name);
+INSERT INTO units (name) VALUES
+  ('л') ON DUPLICATE KEY UPDATE name = VALUES(name);
+INSERT INTO units (name) VALUES
+  ('кг') ON DUPLICATE KEY UPDATE name = VALUES(name);
+INSERT INTO units (name) VALUES
+  ('т') ON DUPLICATE KEY UPDATE name = VALUES(name);
+INSERT INTO units (name) VALUES
+  ('рулон') ON DUPLICATE KEY UPDATE name = VALUES(name);
+INSERT INTO units (name) VALUES
+  ('час') ON DUPLICATE KEY UPDATE name = VALUES(name);
+
+INSERT INTO materials (name, category_id, unit_id, description, is_active)
+SELECT 'Куртка утеплённая зимняя', c.id, u.id, 'Комплект с утеплителем до -30°C', 1
+FROM categories c, units u
+WHERE c.name = 'Спецодежда' AND u.name = 'шт.'
+ON DUPLICATE KEY UPDATE description = VALUES(description), is_active = VALUES(is_active);
+
+INSERT INTO materials (name, category_id, unit_id, description, is_active)
+SELECT 'Брюки утеплённые зимние', c.id, u.id, 'Для наружных работ, влагозащита', 1
+FROM categories c, units u
+WHERE c.name = 'Спецодежда' AND u.name = 'шт.'
+ON DUPLICATE KEY UPDATE description = VALUES(description), is_active = VALUES(is_active);
+
+INSERT INTO materials (name, category_id, unit_id, description, is_active)
+SELECT 'Перчатки диэлектрические', c.id, u.id, 'Защита до 1000 В, ГОСТ', 1
+FROM categories c, units u
+WHERE c.name = 'Спецодежда' AND u.name = 'пара'
+ON DUPLICATE KEY UPDATE description = VALUES(description), is_active = VALUES(is_active);
+
+INSERT INTO materials (name, category_id, unit_id, description, is_active)
+SELECT 'Каска защитная ударопрочная', c.id, u.id, 'Регулируемый обхват, вентиляция', 1
+FROM categories c, units u
+WHERE c.name = 'Спецодежда' AND u.name = 'шт.'
+ON DUPLICATE KEY UPDATE description = VALUES(description), is_active = VALUES(is_active);
+
+INSERT INTO materials (name, category_id, unit_id, description, is_active)
+SELECT 'Респиратор FFP3', c.id, u.id, 'Фильтр класса P3, многоразовый', 1
+FROM categories c, units u
+WHERE c.name = 'Спецодежда' AND u.name = 'шт.'
+ON DUPLICATE KEY UPDATE description = VALUES(description), is_active = VALUES(is_active);
+
+INSERT INTO materials (name, category_id, unit_id, description, is_active)
+SELECT 'Перчатки нитриловые усиленные', c.id, u.id, 'Устойчивы к химреагентам, 50 пар', 1
+FROM categories c, units u
+WHERE c.name = 'Спецодежда' AND u.name = 'упак.'
+ON DUPLICATE KEY UPDATE description = VALUES(description), is_active = VALUES(is_active);
+
+INSERT INTO materials (name, category_id, unit_id, description, is_active)
+SELECT 'Бензопила профессиональная', c.id, u.id, 'Шина 45 см, комплект цепей', 1
+FROM categories c, units u
+WHERE c.name = 'Инструмент' AND u.name = 'шт.'
+ON DUPLICATE KEY UPDATE description = VALUES(description), is_active = VALUES(is_active);
+
+INSERT INTO materials (name, category_id, unit_id, description, is_active)
+SELECT 'Отбойный молоток электрический', c.id, u.id, 'Мощность 1700 Вт, кейс и пики', 1
+FROM categories c, units u
+WHERE c.name = 'Инструмент' AND u.name = 'шт.'
+ON DUPLICATE KEY UPDATE description = VALUES(description), is_active = VALUES(is_active);
+
+INSERT INTO materials (name, category_id, unit_id, description, is_active)
+SELECT 'Удлинитель силовой 30 м', c.id, u.id, '3 розетки, IP44', 1
+FROM categories c, units u
+WHERE c.name = 'Инструмент' AND u.name = 'шт.'
+ON DUPLICATE KEY UPDATE description = VALUES(description), is_active = VALUES(is_active);
+
+INSERT INTO materials (name, category_id, unit_id, description, is_active)
+SELECT 'Лопата штыковая усиленная', c.id, u.id, 'Стальная, черенок фиберглас', 1
+FROM categories c, units u
+WHERE c.name = 'Инструмент' AND u.name = 'шт.'
+ON DUPLICATE KEY UPDATE description = VALUES(description), is_active = VALUES(is_active);
+
+INSERT INTO materials (name, category_id, unit_id, description, is_active)
+SELECT 'Щебень фракция 20-40', c.id, u.id, 'Для дорожных оснований', 1
+FROM categories c, units u
+WHERE c.name = 'Материалы' AND u.name = 'т'
+ON DUPLICATE KEY UPDATE description = VALUES(description), is_active = VALUES(is_active);
+
+INSERT INTO materials (name, category_id, unit_id, description, is_active)
+SELECT 'Песок мытый карьерный', c.id, u.id, 'Просеянный, влажность <5%', 1
+FROM categories c, units u
+WHERE c.name = 'Материалы' AND u.name = 'т'
+ON DUPLICATE KEY UPDATE description = VALUES(description), is_active = VALUES(is_active);
+
+INSERT INTO materials (name, category_id, unit_id, description, is_active)
+SELECT 'Бетон М300 B22.5', c.id, u.id, 'С поставкой автобетоносмесителем', 1
+FROM categories c, units u
+WHERE c.name = 'Материалы' AND u.name = 'м³'
+ON DUPLICATE KEY UPDATE description = VALUES(description), is_active = VALUES(is_active);
+
+INSERT INTO materials (name, category_id, unit_id, description, is_active)
+SELECT 'Кирпич керамический рядовой', c.id, u.id, 'ГОСТ 530-2012, полнотелый', 1
+FROM categories c, units u
+WHERE c.name = 'Материалы' AND u.name = 'шт.'
+ON DUPLICATE KEY UPDATE description = VALUES(description), is_active = VALUES(is_active);
+
+INSERT INTO materials (name, category_id, unit_id, description, is_active)
+SELECT 'Плитка тротуарная 300x300', c.id, u.id, 'Вибропрессованная, цвет серая', 1
+FROM categories c, units u
+WHERE c.name = 'Материалы' AND u.name = 'м²'
+ON DUPLICATE KEY UPDATE description = VALUES(description), is_active = VALUES(is_active);
+
+INSERT INTO materials (name, category_id, unit_id, description, is_active)
+SELECT 'Грунтовка глубокого проникновения', c.id, u.id, 'Канистра 10 л', 1
+FROM categories c, units u
+WHERE c.name = 'Материалы' AND u.name = 'л'
+ON DUPLICATE KEY UPDATE description = VALUES(description), is_active = VALUES(is_active);
+
+INSERT INTO materials (name, category_id, unit_id, description, is_active)
+SELECT 'Краска фасадная акриловая', c.id, u.id, 'Ведро 15 л, цвет белый', 1
+FROM categories c, units u
+WHERE c.name = 'Материалы' AND u.name = 'л'
+ON DUPLICATE KEY UPDATE description = VALUES(description), is_active = VALUES(is_active);
+
+INSERT INTO materials (name, category_id, unit_id, description, is_active)
+SELECT 'Масло моторное 5W-40', c.id, u.id, 'Полусинтетика, канистра 4 л', 1
+FROM categories c, units u
+WHERE c.name = 'Материалы' AND u.name = 'л'
+ON DUPLICATE KEY UPDATE description = VALUES(description), is_active = VALUES(is_active);
+
+INSERT INTO materials (name, category_id, unit_id, description, is_active)
+SELECT 'Комплект ламп LED 20 Вт', c.id, u.id, 'Энергоэффективные, 10 шт.', 1
+FROM categories c, units u
+WHERE c.name = 'Материалы' AND u.name = 'компл.'
+ON DUPLICATE KEY UPDATE description = VALUES(description), is_active = VALUES(is_active);
+
+INSERT INTO materials (name, category_id, unit_id, description, is_active)
+SELECT 'Дорожный знак 1.23', c.id, u.id, 'Отражающая плёнка тип 2', 1
+FROM categories c, units u
+WHERE c.name = 'ДИП' AND u.name = 'шт.'
+ON DUPLICATE KEY UPDATE description = VALUES(description), is_active = VALUES(is_active);
+
+INSERT INTO materials (name, category_id, unit_id, description, is_active)
+SELECT 'Секция металлического ограждения', c.id, u.id, 'Порошковая окраска, высота 1.5 м', 1
+FROM categories c, units u
+WHERE c.name = 'ДИП' AND u.name = 'шт.'
+ON DUPLICATE KEY UPDATE description = VALUES(description), is_active = VALUES(is_active);
+
+INSERT INTO materials (name, category_id, unit_id, description, is_active)
+SELECT 'Дорожная краска белая', c.id, u.id, 'Быстросохнущая, ведро 20 л', 1
+FROM categories c, units u
+WHERE c.name = 'ДИП' AND u.name = 'л'
+ON DUPLICATE KEY UPDATE description = VALUES(description), is_active = VALUES(is_active);
+
+INSERT INTO materials (name, category_id, unit_id, description, is_active)
+SELECT 'Геотекстиль 150 г/м²', c.id, u.id, 'Рулон 2x50 м', 1
+FROM categories c, units u
+WHERE c.name = 'Материалы' AND u.name = 'рулон'
+ON DUPLICATE KEY UPDATE description = VALUES(description), is_active = VALUES(is_active);
+
+INSERT INTO materials (name, category_id, unit_id, description, is_active)
+SELECT 'Соль техническая противогололёдная', c.id, u.id, 'Фасовка по 50 кг', 1
+FROM categories c, units u
+WHERE c.name = 'Материалы' AND u.name = 'т'
+ON DUPLICATE KEY UPDATE description = VALUES(description), is_active = VALUES(is_active);
+
+INSERT INTO materials (name, category_id, unit_id, description, is_active)
+SELECT 'Пескосоль смесь 70/30', c.id, u.id, 'Для обработки дорог', 1
+FROM categories c, units u
+WHERE c.name = 'Материалы' AND u.name = 'т'
+ON DUPLICATE KEY UPDATE description = VALUES(description), is_active = VALUES(is_active);
+
+INSERT INTO materials (name, category_id, unit_id, description, is_active)
+SELECT 'Укладка резинового покрытия', c.id, u.id, 'Работы по монтажу спортивного покрытия', 1
+FROM categories c, units u
+WHERE c.name = 'ДИП' AND u.name = 'м²'
+ON DUPLICATE KEY UPDATE description = VALUES(description), is_active = VALUES(is_active);

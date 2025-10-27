@@ -7,129 +7,148 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script type="module" src="./js/dashboard.js"></script>
 </head>
-<body class="min-h-screen bg-slate-100" data-role="user">
+<body class="min-h-screen bg-gradient-to-br from-slate-100 via-white to-slate-200" data-role="user">
     <div id="toast-container" class="fixed inset-x-0 top-4 flex flex-col items-center space-y-3 z-50"></div>
-    <header class="bg-white shadow">
-        <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+    <header class="bg-white/80 backdrop-blur shadow-sm">
+        <div class="max-w-6xl mx-auto px-6 py-5 flex flex-wrap items-center justify-between gap-4">
             <div>
-                <h1 class="text-xl font-semibold text-slate-800">Мои заявки</h1>
-                <p class="text-sm text-slate-500">Создавайте заявки и отслеживайте статусы</p>
+                <p class="uppercase tracking-[0.3em] text-xs text-emerald-500 font-semibold">Система заявок</p>
+                <h1 class="text-2xl font-semibold text-slate-800">Личный кабинет сотрудника</h1>
+                <p class="text-sm text-slate-500">Создавайте заявки на закупку, контролируйте статусы и скачивайте PDF</p>
             </div>
             <div class="flex items-center space-x-4">
-                <span id="userInfo" class="text-sm text-slate-600"></span>
-                <button id="changePasswordBtn" class="hidden px-3 py-1 rounded-md border border-amber-400 text-amber-600 hover:bg-amber-50">Сменить пароль</button>
-                <button id="logoutBtn" class="px-3 py-1 rounded-md bg-red-500 hover:bg-red-600 text-white">Выйти</button>
+                <div class="text-right">
+                    <p class="text-xs uppercase tracking-wide text-slate-400">Пользователь</p>
+                    <span id="userInfo" class="text-sm font-medium text-slate-700"></span>
+                </div>
+                <button id="changePasswordBtn" class="hidden px-4 py-2 rounded-lg border border-amber-400 text-amber-600 hover:bg-amber-50">Сменить пароль</button>
+                <button id="logoutBtn" class="px-4 py-2 rounded-lg bg-red-500 hover:bg-red-600 text-white shadow">Выйти</button>
             </div>
         </div>
     </header>
 
-    <main class="max-w-6xl mx-auto px-4 py-6 space-y-8">
-        <section id="passwordChangeSection" class="hidden bg-white shadow rounded-lg p-6 space-y-4">
-            <h2 class="text-lg font-semibold text-slate-700">Смена пароля</h2>
-            <form id="passwordChangeForm" class="space-y-3">
+    <main class="max-w-6xl mx-auto px-6 py-8 space-y-10">
+        <section id="passwordChangeSection" class="hidden bg-white/90 shadow-xl shadow-slate-200 rounded-2xl p-8 space-y-4">
+            <div>
+                <h2 class="text-xl font-semibold text-slate-800">Смена пароля</h2>
+                <p class="text-sm text-slate-500">Придумайте новый пароль длиной не менее 8 символов</p>
+            </div>
+            <form id="passwordChangeForm" class="grid gap-4 md:grid-cols-2">
                 <div>
                     <label class="block text-sm font-medium text-slate-600">Новый пароль</label>
-                    <input type="password" name="new_password" required minlength="8" class="mt-1 block w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600">
+                    <input type="password" name="new_password" required minlength="8" class="mt-1 block w-full rounded-lg border-slate-200 focus:border-emerald-500 focus:ring-emerald-500">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-slate-600">Подтверждение</label>
-                    <input type="password" name="confirm_password" required minlength="8" class="mt-1 block w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600">
+                    <input type="password" name="confirm_password" required minlength="8" class="mt-1 block w-full rounded-lg border-slate-200 focus:border-emerald-500 focus:ring-emerald-500">
                 </div>
-                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Сохранить</button>
+                <div class="md:col-span-2 flex justify-end">
+                    <button type="submit" class="px-5 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 shadow">Сохранить пароль</button>
+                </div>
             </form>
         </section>
 
-        <section class="bg-white shadow rounded-lg p-6 space-y-4">
-            <div class="flex items-center justify-between">
-                <h2 class="text-lg font-semibold text-slate-700">Новая заявка</h2>
-                <div class="space-x-2">
-                    <button id="saveDraftBtn" class="px-4 py-2 bg-slate-200 text-slate-700 rounded-md hover:bg-slate-300">Сохранить черновик</button>
-                    <button id="submitRequestBtn" class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Отправить</button>
-                    <button id="downloadPdfBtn" class="px-4 py-2 bg-emerald-500 text-white rounded-md hover:bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed" disabled>Скачать PDF</button>
+        <section class="bg-white/90 shadow-xl shadow-slate-200 rounded-2xl p-8 space-y-6">
+            <div class="flex flex-wrap items-start justify-between gap-6">
+                <div>
+                    <h2 class="text-xl font-semibold text-slate-800">Новая заявка</h2>
+                    <p class="text-sm text-slate-500">Заполните обоснование и добавьте позиции из справочника или вручную</p>
+                </div>
+                <div class="flex flex-wrap gap-3">
+                    <button id="saveDraftBtn" class="px-4 py-2 bg-slate-100 border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-200">Сохранить черновик</button>
+                    <button id="submitRequestBtn" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow">Отправить</button>
+                    <button id="downloadPdfBtn" class="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 shadow disabled:opacity-50 disabled:cursor-not-allowed" disabled>Скачать PDF</button>
                 </div>
             </div>
-            <form id="requestForm" class="space-y-4">
+            <form id="requestForm" class="space-y-6">
                 <div>
                     <label class="block text-sm font-medium text-slate-600">Обоснование <span class="text-red-500">*</span></label>
-                    <textarea name="justification" id="justification" rows="4" required class="mt-1 w-full rounded-md border-gray-300 focus:border-blue-600 focus:ring-blue-600" placeholder="Опишите необходимость закупки"></textarea>
+                    <textarea name="justification" id="justification" rows="4" required class="mt-1 w-full rounded-lg border-slate-200 focus:border-emerald-500 focus:ring-emerald-500" placeholder="Опишите необходимость закупки, условия поставки, сроки и ожидаемый эффект"></textarea>
                 </div>
-                <div>
-                    <h3 class="text-md font-semibold text-slate-600 mb-2">Позиции</h3>
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-gray-200" id="itemsTable">
+                <div class="space-y-4">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <h3 class="text-md font-semibold text-slate-700">Позиции заявки</h3>
+                        <button type="button" id="addItemBtn" class="px-3 py-2 bg-slate-100 border border-slate-200 text-slate-700 rounded-lg hover:bg-slate-200">Добавить строку</button>
+                    </div>
+                    <div class="overflow-x-auto rounded-xl border border-slate-200">
+                        <table class="min-w-full divide-y divide-slate-200" id="itemsTable">
                             <thead class="bg-slate-50">
                                 <tr>
-                                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">№</th>
-                                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">Категория</th>
-                                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">Наименование</th>
-                                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">Ед. изм.</th>
-                                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">Кол-во</th>
-                                    <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">Комментарий</th>
-                                    <th class="px-3 py-2 text-right text-xs font-semibold text-slate-500">Действия</th>
+                                    <th class="px-4 py-3 text-left text-[11px] font-semibold tracking-wider text-slate-500 uppercase">№</th>
+                                    <th class="px-4 py-3 text-left text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Категория</th>
+                                    <th class="px-4 py-3 text-left text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Наименование</th>
+                                    <th class="px-4 py-3 text-left text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Ед. изм.</th>
+                                    <th class="px-4 py-3 text-left text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Кол-во</th>
+                                    <th class="px-4 py-3 text-left text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Комментарий</th>
+                                    <th class="px-4 py-3 text-right text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Действия</th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-gray-200" id="itemsBody"></tbody>
+                            <tbody class="divide-y divide-slate-100 bg-white" id="itemsBody"></tbody>
                         </table>
                     </div>
-                    <button type="button" id="addItemBtn" class="mt-3 px-3 py-2 bg-slate-200 text-slate-700 rounded-md hover:bg-slate-300">Добавить позицию</button>
-                    <div class="mt-3 flex flex-wrap items-center gap-2 text-sm">
-                        <span class="text-slate-600">Добавить из справочника:</span>
-                        <select id="materialQuickSelect" class="rounded border-gray-300 focus:border-blue-600 focus:ring-blue-600">
-                            <option value="">Загрузка…</option>
-                        </select>
-                        <button type="button" id="addMaterialFromCatalog" class="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">Добавить материал</button>
+                    <div class="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] items-center bg-slate-50 border border-slate-200 rounded-xl p-4">
+                        <div class="flex flex-wrap items-center gap-3 text-sm">
+                            <span class="text-slate-600">Быстрый выбор из справочника:</span>
+                            <select id="materialQuickSelect" class="rounded-lg border-slate-200 focus:border-blue-600 focus:ring-blue-600">
+                                <option value="">Загрузка…</option>
+                            </select>
+                        </div>
+                        <button type="button" id="addMaterialFromCatalog" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow">Добавить материал</button>
+                        <p class="md:col-span-2 text-xs text-slate-500">При выборе материала категория, единица измерения и описание подставляются автоматически. Количество и комментарий можно корректировать.</p>
                     </div>
-                    <p class="text-xs text-slate-500 mt-1">Выбранный материал автоматически заполнит категорию, наименование и единицу. Количество можно изменить вручную.</p>
                 </div>
             </form>
         </section>
 
-        <section class="bg-white shadow rounded-lg p-6 space-y-4">
-            <div class="flex items-center justify-between">
-                <h2 class="text-lg font-semibold text-slate-700">Мои заявки</h2>
-                <div class="flex space-x-2">
-                    <select id="filterStatus" class="rounded-md border-gray-300 text-sm">
+        <section class="bg-white/90 shadow-xl shadow-slate-200 rounded-2xl p-8 space-y-6">
+            <div class="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                    <h2 class="text-xl font-semibold text-slate-800">Мои заявки</h2>
+                    <p class="text-sm text-slate-500">Следите за статусами и скачивайте PDF-версии</p>
+                </div>
+                <div class="flex flex-wrap items-center gap-3 text-sm">
+                    <select id="filterStatus" class="rounded-lg border-slate-200 focus:border-emerald-500 focus:ring-emerald-500">
                         <option value="">Все статусы</option>
                     </select>
-                    <input type="date" id="filterFrom" class="rounded-md border-gray-300 text-sm">
-                    <input type="date" id="filterTo" class="rounded-md border-gray-300 text-sm">
-                    <button id="applyFiltersBtn" class="px-3 py-2 bg-slate-200 rounded-md text-sm">Применить</button>
+                    <input type="date" id="filterFrom" class="rounded-lg border-slate-200 focus:border-emerald-500 focus:ring-emerald-500">
+                    <input type="date" id="filterTo" class="rounded-lg border-slate-200 focus:border-emerald-500 focus:ring-emerald-500">
+                    <button id="applyFiltersBtn" class="px-4 py-2 bg-slate-100 border border-slate-200 rounded-lg hover:bg-slate-200">Применить</button>
                 </div>
             </div>
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200" id="requestsTable">
+            <div class="overflow-x-auto rounded-xl border border-slate-200">
+                <table class="min-w-full divide-y divide-slate-200" id="requestsTable">
                     <thead class="bg-slate-50">
                         <tr>
-                            <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">№</th>
-                            <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">Дата</th>
-                            <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">Статус</th>
-                            <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">Позиций</th>
-                            <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">Обоснование</th>
-                            <th class="px-3 py-2 text-right text-xs font-semibold text-slate-500">Действия</th>
+                            <th class="px-4 py-3 text-left text-[11px] font-semibold tracking-wider text-slate-500 uppercase">№</th>
+                            <th class="px-4 py-3 text-left text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Дата</th>
+                            <th class="px-4 py-3 text-left text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Статус</th>
+                            <th class="px-4 py-3 text-left text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Позиций</th>
+                            <th class="px-4 py-3 text-left text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Обоснование</th>
+                            <th class="px-4 py-3 text-right text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Действия</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-200" id="requestsBody"></tbody>
+                    <tbody class="divide-y divide-slate-100 bg-white" id="requestsBody"></tbody>
                 </table>
             </div>
-            <div class="flex justify-between items-center text-sm text-slate-500">
-                <span id="requestsSummary"></span>
-                <div class="space-x-2">
-                    <button id="prevPageBtn" class="px-2 py-1 bg-slate-200 rounded disabled:opacity-50">Назад</button>
-                    <button id="nextPageBtn" class="px-2 py-1 bg-slate-200 rounded disabled:opacity-50">Вперёд</button>
+            <div class="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
+                <span id="requestsSummary" class="font-medium"></span>
+                <div class="flex items-center gap-2">
+                    <button id="prevPageBtn" class="px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg hover:bg-slate-200 disabled:opacity-50">Назад</button>
+                    <button id="nextPageBtn" class="px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg hover:bg-slate-200 disabled:opacity-50">Вперёд</button>
                 </div>
             </div>
         </section>
     </main>
 
     <template id="itemRowTemplate">
-        <tr>
-            <td class="px-3 py-2 text-sm text-slate-600 index">1</td>
-            <td class="px-3 py-2 text-sm"><input name="category" list="categorySuggestions" required class="w-full rounded border-gray-300"></td>
-            <td class="px-3 py-2 text-sm"><input name="item_name" list="materialNameSuggestions" required class="w-full rounded border-gray-300"></td>
-            <td class="px-3 py-2 text-sm"><input name="unit" list="unitSuggestions" required class="w-full rounded border-gray-300"></td>
-            <td class="px-3 py-2 text-sm"><input name="qty" type="number" min="0.01" step="0.01" required class="w-full rounded border-gray-300"></td>
-            <td class="px-3 py-2 text-sm"><input name="note" class="w-full rounded border-gray-300"></td>
-            <td class="px-3 py-2 text-right text-sm"><button type="button" class="removeItem text-red-500 hover:text-red-700">Удалить</button></td>
+        <tr class="bg-white">
+            <td class="px-4 py-3 text-sm text-slate-600 index">1</td>
+            <td class="px-4 py-3 text-sm"><input name="category" list="categorySuggestions" required class="w-full rounded-lg border-slate-200 focus:border-blue-600 focus:ring-blue-600"></td>
+            <td class="px-4 py-3 text-sm"><input name="item_name" list="materialNameSuggestions" required class="w-full rounded-lg border-slate-200 focus:border-blue-600 focus:ring-blue-600"></td>
+            <td class="px-4 py-3 text-sm"><input name="unit" list="unitSuggestions" required class="w-full rounded-lg border-slate-200 focus:border-blue-600 focus:ring-blue-600"></td>
+            <td class="px-4 py-3 text-sm"><input name="qty" type="number" min="0.01" step="0.01" required class="w-full rounded-lg border-slate-200 focus:border-blue-600 focus:ring-blue-600"></td>
+            <td class="px-4 py-3 text-sm"><input name="note" class="w-full rounded-lg border-slate-200 focus:border-blue-600 focus:ring-blue-600"></td>
+            <td class="px-4 py-3 text-right text-sm"><button type="button" class="removeItem text-red-500 hover:text-red-700">Удалить</button></td>
         </tr>
     </template>
 

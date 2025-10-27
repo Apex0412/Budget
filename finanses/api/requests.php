@@ -67,7 +67,7 @@ switch ($action) {
         $items = $stmt->fetchAll();
 
         foreach ($items as &$item) {
-            $item['can_edit'] = $user['role'] === 'admin' || ($item['author_id'] == $user['id'] && in_array($item['status'], ['draft', 'submitted'], true));
+            $item['can_edit'] = $user['role'] === 'admin' || ($item['author_id'] == $user['id'] && in_array($item['status'], ['draft', 'submitted', 'returned'], true));
         }
 
         ok([
@@ -173,7 +173,7 @@ switch ($action) {
         if (!$request) {
             fail('Заявка не найдена', 404);
         }
-        if ($user['role'] !== 'admin' && ($request['author_id'] != $user['id'] || !in_array($request['status'], ['draft', 'submitted'], true))) {
+        if ($user['role'] !== 'admin' && ($request['author_id'] != $user['id'] || !in_array($request['status'], ['draft', 'submitted', 'returned'], true))) {
             fail('Редактирование запрещено', 403);
         }
 
@@ -234,7 +234,7 @@ switch ($action) {
         $payload = json_input();
         $id = (int)($payload['id'] ?? 0);
         $status = (string)($payload['status'] ?? '');
-        $allowed = ['draft','submitted','approved','rejected','in_progress','purchased'];
+        $allowed = ['draft','submitted','returned','approved','rejected','in_progress','purchased'];
         if ($id <= 0 || !in_array($status, $allowed, true)) {
             fail('Некорректные данные');
         }
@@ -285,9 +285,18 @@ switch ($action) {
             'description' => 'Создано в текущем месяце'
         ];
         $byStatus = $pdo->query('SELECT status, COUNT(*) as cnt FROM requests GROUP BY status')->fetchAll();
+        $statusTitles = [
+            'draft' => 'Черновик',
+            'submitted' => 'Отправлена',
+            'returned' => 'На доработке',
+            'approved' => 'Согласована',
+            'rejected' => 'Отклонена',
+            'in_progress' => 'В работе',
+            'purchased' => 'Закуплено',
+        ];
         foreach ($byStatus as $row) {
             $stats[] = [
-                'metric' => 'Статус: ' . $row['status'],
+                'metric' => 'Статус: ' . ($statusTitles[$row['status']] ?? $row['status']),
                 'value' => (int)$row['cnt'],
                 'description' => 'Количество заявок со статусом'
             ];

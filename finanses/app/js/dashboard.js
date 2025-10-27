@@ -7,10 +7,12 @@ let currentPage = 1;
 let totalPages = 1;
 let filters = {};
 let materialLibrary = [];
+let categoryDefaults = new Map();
 
 const statuses = {
     draft: 'Черновик',
     submitted: 'Отправлена',
+    returned: 'На доработке',
     approved: 'Согласована',
     rejected: 'Отклонена',
     in_progress: 'В работе',
@@ -41,6 +43,82 @@ function resetForm() {
     document.getElementById('downloadPdfBtn').disabled = true;
 }
 
+function applyMaterialToRow(row, material) {
+    if (!material) return;
+    const categoryInput = row.querySelector('input[name="category"]');
+    const unitInput = row.querySelector('input[name="unit"]');
+    const noteInput = row.querySelector('input[name="note"]');
+    if (material.category_name) {
+        categoryInput.value = material.category_name;
+    }
+    if (material.unit_name && unitInput.dataset.autofill !== 'manual') {
+        unitInput.value = material.unit_name;
+        unitInput.dataset.autofill = 'material';
+    }
+    if (material.description && !noteInput.value) {
+        noteInput.value = material.description;
+    }
+    row.dataset.materialId = String(material.id);
+}
+
+function detectMaterialByName(name) {
+    if (!name) return null;
+    const normalized = name.trim().toLowerCase();
+    if (!normalized) return null;
+    return materialLibrary.find((item) => item.name.toLowerCase() === normalized) || null;
+}
+
+function attachRowEnhancements(row) {
+    const nameInput = row.querySelector('input[name="item_name"]');
+    const categoryInput = row.querySelector('input[name="category"]');
+    const unitInput = row.querySelector('input[name="unit"]');
+
+    const resetAutofill = () => {
+        if (unitInput.dataset.autofill === 'material') {
+            unitInput.value = '';
+            delete unitInput.dataset.autofill;
+        }
+        row.dataset.materialId = '';
+    };
+
+    const applyCategoryDefault = () => {
+        const value = categoryInput.value.trim().toLowerCase();
+        if (!value) return;
+        const defaultUnit = categoryDefaults.get(value);
+        if (defaultUnit && (!unitInput.value || unitInput.dataset.autofill === 'category')) {
+            unitInput.value = defaultUnit;
+            unitInput.dataset.autofill = 'category';
+        }
+    };
+
+    ['change', 'blur'].forEach((eventName) => {
+        nameInput.addEventListener(eventName, () => {
+            const material = detectMaterialByName(nameInput.value);
+            if (material) {
+                applyMaterialToRow(row, material);
+            } else {
+                resetAutofill();
+            }
+        });
+    });
+
+    nameInput.addEventListener('input', () => {
+        if (!nameInput.value.trim()) {
+            resetAutofill();
+        }
+    });
+
+    ['change', 'blur'].forEach((eventName) => {
+        categoryInput.addEventListener(eventName, applyCategoryDefault);
+    });
+
+    ['input', 'change'].forEach((eventName) => {
+        unitInput.addEventListener(eventName, () => {
+            unitInput.dataset.autofill = 'manual';
+        });
+    });
+}
+
 function addItemRow(data = {}) {
     const template = document.getElementById('itemRowTemplate');
     const clone = template.content.cloneNode(true);
@@ -58,6 +136,11 @@ function addItemRow(data = {}) {
     });
 
     document.getElementById('itemsBody').appendChild(row);
+    attachRowEnhancements(row);
+    const material = detectMaterialByName(row.querySelector('input[name="item_name"]').value);
+    if (material) {
+        applyMaterialToRow(row, material);
+    }
     updateIndices();
 }
 
@@ -118,6 +201,15 @@ async function loadMaterialsDictionary() {
     } else {
         materialLibrary = response.data;
     }
+    categoryDefaults = new Map();
+    materialLibrary.forEach((material) => {
+        if (material.category_name && material.unit_name) {
+            const key = material.category_name.toLowerCase();
+            if (!categoryDefaults.has(key)) {
+                categoryDefaults.set(key, material.unit_name);
+            }
+        }
+    });
     populateMaterialSources();
 }
 

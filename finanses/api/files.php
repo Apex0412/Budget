@@ -31,7 +31,14 @@ switch ($action) {
             fail('Нет доступа', 403);
         }
         $cacheFile = __DIR__ . '/../pdf/' . $id . '.pdf';
-        if (!file_exists($cacheFile)) {
+        $shouldRegenerate = !file_exists($cacheFile);
+        if (!$shouldRegenerate) {
+            $updatedAt = $request['updated_at'] ?? $request['created_at'];
+            if ($updatedAt && @filemtime($cacheFile) < strtotime($updatedAt)) {
+                $shouldRegenerate = true;
+            }
+        }
+        if ($shouldRegenerate) {
             if (!class_exists('TCPDF')) {
                 fail('Библиотека TCPDF не установлена', 500);
             }
@@ -39,34 +46,50 @@ switch ($action) {
             $pdf->SetCreator('Finanses');
             $pdf->SetAuthor($request['author_fio']);
             $pdf->SetTitle('Служебная записка #' . $id);
-            $pdf->SetMargins(15, 20, 15);
+            $pdf->SetMargins(20, 25, 20);
             $pdf->AddPage();
             $pdf->SetFont('dejavusans', '', 11);
 
-            $header = sprintf("<div style='text-align:right;'>%s<br>%s<br>%s<br>%s</div>",
-                htmlspecialchars($request['author_fio']),
-                htmlspecialchars($request['author_position'] ?? ''),
-                htmlspecialchars($request['author_department'] ?? ''),
-                date('d.m.Y', strtotime($request['created_at']))
-            );
-            $pdf->writeHTML($header, true, false, false, false, '');
+            $orgName = env('PDF_ORG_NAME', 'Муниципальное бюджетное учреждение «Комбинат благоустройства»');
+            $recipientTitle = env('PDF_RECIPIENT_TITLE', 'Начальнику отдела закупок');
+            $recipientName = env('PDF_RECIPIENT_NAME', '');
+            $authorHeader = env('PDF_AUTHOR_TITLE', $request['author_position'] ?: 'Отправитель');
+            $authorSignatureTitle = env('PDF_SIGNATORY_TITLE', $request['author_position'] ?: 'Руководитель');
+            $authorSignatureName = env('PDF_SIGNATORY_NAME', $request['author_fio']);
+            $city = env('PDF_CITY', 'г. Серпухов');
 
-            $pdf->SetFont('dejavusans', 'B', 14);
-            $pdf->Cell(0, 10, 'СЛУЖЕБНАЯ ЗАПИСКА', 0, 1, 'C');
+            $headerTable = "<table width='100%' cellpadding='0' cellspacing='0'>
+                <tr>
+                    <td width='55%' style='text-align:left; font-size:10pt; line-height:1.4;'>" .
+                        nl2br(htmlspecialchars($orgName)) . "</td>
+                    <td width='45%' style='text-align:right; font-size:10pt; line-height:1.6;'>" .
+                        htmlspecialchars($recipientTitle) . (strlen($recipientName) ? '<br>' . htmlspecialchars($recipientName) : '') .
+                        '<br>' . htmlspecialchars($authorHeader) . '<br>' . htmlspecialchars($authorSignatureName) .
+                    "</td>
+                </tr>
+            </table>";
+            $pdf->writeHTML($headerTable, true, false, false, false, '');
+
+            $pdf->Ln(8);
+            $pdf->SetFont('dejavusans', 'B', 15);
+            $pdf->Cell(0, 12, 'ЗАЯВКА', 0, 1, 'C');
+
             $pdf->Ln(2);
-
             $pdf->SetFont('dejavusans', '', 11);
-            $pdf->MultiCell(0, 6, 'Прошу включить в заявку на закупку следующие позиции:', 0, 'L', false, 1);
+            $leadText = env('PDF_BODY_INTRO', 'В рамках исполнения планов закупок прошу включить в заявку следующие позиции:');
+            $pdf->MultiCell(0, 7, $leadText, 0, 'L', false, 1);
 
-            $table = "<table border='1' cellpadding='4'>
-                <thead><tr>
-                    <th width='30' align='center'>№</th>
-                    <th width='120'>Категория</th>
-                    <th width='160'>Наименование</th>
-                    <th width='60'>Ед. изм.</th>
-                    <th width='60' align='right'>Кол-во</th>
-                    <th width='100'>Комментарий</th>
-                </tr></thead><tbody>";
+            $table = "<table border='1' cellpadding='6'>
+                <thead style='font-weight:bold; background-color:#f8fafc;'>
+                    <tr>
+                        <th width='35' align='center'>№</th>
+                        <th width='120'>Категория</th>
+                        <th width='190'>Наименование</th>
+                        <th width='70'>Ед. изм.</th>
+                        <th width='70' align='right'>Кол-во</th>
+                        <th width='110'>Комментарий</th>
+                    </tr>
+                </thead><tbody>";
             foreach ($items as $index => $item) {
                 $table .= '<tr>';
                 $table .= "<td align='center'>" . ($index + 1) . '</td>';
@@ -80,18 +103,25 @@ switch ($action) {
             $table .= '</tbody></table>';
             $pdf->writeHTML($table, true, false, false, false, '');
 
-            $pdf->Ln(2);
+            $pdf->Ln(4);
             $pdf->SetFont('dejavusans', 'B', 11);
-            $pdf->MultiCell(0, 6, 'Обоснование:', 0, 'L', false, 1);
+            $pdf->MultiCell(0, 7, 'Обоснование:', 0, 'L', false, 1);
             $pdf->SetFont('dejavusans', '', 11);
-            $pdf->MultiCell(0, 6, $request['justification'], 0, 'L', false, 1);
+            $justificationText = preg_replace("/(\r\n|\r)/", "\n", (string)$request['justification']);
+            $pdf->MultiCell(0, 7, $justificationText, 0, 'L', false, 1);
 
-            $pdf->Ln(10);
-            $footer = sprintf("<table width='100%%'><tr><td>Подпись ____________</td><td align='right'>%s</td></tr><tr><td colspan='2'>Расшифровка подписи: %s</td></tr></table>",
-                htmlspecialchars(env('PDF_CITY', 'г. Серпухов')),
-                htmlspecialchars($request['author_fio'])
-            );
-            $pdf->writeHTML($footer, true, false, false, false, '');
+            $pdf->Ln(12);
+            $signatureTable = "<table width='100%' cellpadding='2'>
+                <tr>
+                    <td width='55%'>" . htmlspecialchars($authorSignatureTitle) . "</td>
+                    <td width='45%' align='right'>" . htmlspecialchars($city) . ', ' . date('d.m.Y', strtotime($request['created_at'])) . "</td>
+                </tr>
+                <tr>
+                    <td width='55%' style='padding-top:12px;'>Подпись ____________</td>
+                    <td width='45%' style='padding-top:12px;' align='right'>" . htmlspecialchars($authorSignatureName) . "</td>
+                </tr>
+            </table>";
+            $pdf->writeHTML($signatureTable, true, false, false, false, '');
 
             $pdf->Output($cacheFile, 'F');
         }

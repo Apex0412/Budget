@@ -7,6 +7,16 @@ let adminTotalPages = 1;
 let adminFilters = {};
 let catalogData = { categories: [], units: [] };
 let materialsCache = [];
+let activeStatusRequestId = null;
+
+const statusOptions = [
+    { value: 'submitted', label: 'Отправлена', description: 'Заявка в очереди на обработку.' },
+    { value: 'returned', label: 'На доработке', description: 'Вернуть инициатору для корректировок.' },
+    { value: 'approved', label: 'Согласована', description: 'Подтверждено руководителем закупок.' },
+    { value: 'rejected', label: 'Отклонена', description: 'Закупка не будет выполнена.' },
+    { value: 'in_progress', label: 'В работе', description: 'Закупочный отдел ведёт исполнение.' },
+    { value: 'purchased', label: 'Закуплено', description: 'Закупка завершена, товары получены.' }
+];
 
 function collectFilters() {
     return {
@@ -41,13 +51,13 @@ async function loadRequests(page = 1) {
             { text: item.author_position || '' },
             { text: item.author_department || '' },
             { text: item.items_count.toString() },
-            { html: renderStatusBadge(item.status) },
+            { html: `<div class="space-y-1"><div>${renderStatusBadge(item.status)}</div><div class="text-xs text-slate-400">${new Date(item.updated_at || item.created_at).toLocaleDateString('ru-RU')}</div></div>` },
             { html: renderJustificationPreview(item.justification) },
             {
                 html: `
                 <div class="flex justify-end space-x-2">
                     <button data-action="pdf" data-id="${item.id}" class="text-emerald-600 hover:text-emerald-800">PDF</button>
-                    <button data-action="status" data-id="${item.id}" class="text-blue-600 hover:text-blue-800">Статус</button>
+                    <button data-action="status" data-id="${item.id}" data-status="${item.status}" class="text-blue-600 hover:text-blue-800">Изменить статус</button>
                 </div>`
             }
         ]
@@ -65,38 +75,42 @@ async function updateStatus(id, status) {
     if (response.ok) {
         showToast('Статус обновлён', 'success');
         await loadRequests(adminPage);
+        closeStatusDialog();
     } else {
         showToast(response.error || 'Ошибка изменения статуса', 'error');
     }
 }
 
-function attachStatusMenu(target, id) {
-    const template = document.getElementById('statusMenuTemplate');
-    const menu = template.content.cloneNode(true).firstElementChild;
-    menu.classList.add('bg-white', 'border', 'border-slate-200', 'shadow', 'p-2', 'rounded');
-    const wrapper = document.createElement('div');
-    wrapper.className = 'absolute z-20';
-    wrapper.appendChild(menu);
-
-    menu.querySelectorAll('button').forEach((btn) => {
-        btn.addEventListener('click', () => {
-            updateStatus(id, btn.dataset.status);
-            wrapper.remove();
-        });
+function renderStatusChoices(container, current) {
+    container.innerHTML = '';
+    statusOptions.forEach((option) => {
+        const wrapper = document.createElement('label');
+        wrapper.className = 'flex items-start space-x-3 rounded-lg border border-slate-200 px-4 py-3 hover:border-emerald-400 transition-colors cursor-pointer bg-white shadow-sm';
+        wrapper.innerHTML = `
+            <input type="radio" name="statusOption" value="${option.value}" class="mt-1" ${option.value === current ? 'checked' : ''}>
+            <div>
+                <div class="font-semibold text-slate-700">${option.label}</div>
+                <div class="text-sm text-slate-500">${option.description}</div>
+            </div>
+        `;
+        container.appendChild(wrapper);
     });
+}
 
-    document.body.appendChild(wrapper);
-    const rect = target.getBoundingClientRect();
-    wrapper.style.left = `${rect.left}px`;
-    wrapper.style.top = `${rect.bottom + window.scrollY}px`;
+function openStatusDialog(id, currentStatus) {
+    activeStatusRequestId = id;
+    const dialog = document.getElementById('statusDialog');
+    const optionsContainer = document.getElementById('statusOptions');
+    renderStatusChoices(optionsContainer, currentStatus);
+    dialog.classList.remove('hidden');
+    requestAnimationFrame(() => dialog.classList.remove('opacity-0'));
+}
 
-    const onClickOutside = (event) => {
-        if (!wrapper.contains(event.target)) {
-            wrapper.remove();
-            document.removeEventListener('click', onClickOutside);
-        }
-    };
-    document.addEventListener('click', onClickOutside);
+function closeStatusDialog() {
+    const dialog = document.getElementById('statusDialog');
+    dialog.classList.add('opacity-0');
+    setTimeout(() => dialog.classList.add('hidden'), 150);
+    activeStatusRequestId = null;
 }
 
 async function exportFile(type) {
@@ -437,7 +451,7 @@ export async function initAdminPanel() {
             window.open(`../api/files.php?action=pdf&id=${id}`, '_blank');
         }
         if (button.dataset.action === 'status') {
-            attachStatusMenu(button, id);
+            openStatusDialog(Number(id), button.dataset.status || 'submitted');
         }
     });
 
@@ -501,6 +515,52 @@ export async function initAdminPanel() {
     const materialsExportBtn = document.getElementById('materialsExportBtn');
     if (materialsExportBtn) {
         materialsExportBtn.addEventListener('click', exportMaterials);
+    }
+
+    const statusForm = document.getElementById('statusDialogForm');
+    if (statusForm) {
+        statusForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            if (!activeStatusRequestId) {
+                closeStatusDialog();
+                return;
+            }
+            const formData = new FormData(statusForm);
+            const selected = formData.get('statusOption');
+            if (!selected) {
+                showToast('Выберите статус', 'warning');
+                return;
+            }
+            const submitBtn = statusForm.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Сохраняем…';
+            }
+            try {
+                await updateStatus(activeStatusRequestId, selected);
+            } finally {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Сохранить';
+                }
+            }
+        });
+    }
+
+    document.querySelectorAll('[data-status-cancel]').forEach((button) => {
+        button.addEventListener('click', (event) => {
+            event.preventDefault();
+            closeStatusDialog();
+        });
+    });
+
+    const statusBackdrop = document.getElementById('statusDialog');
+    if (statusBackdrop) {
+        statusBackdrop.addEventListener('click', (event) => {
+            if (event.target === statusBackdrop) {
+                closeStatusDialog();
+            }
+        });
     }
 
     await Promise.all([loadRequests(), loadUsers(), loadCatalogs(), loadMaterials(), loadSummary(), loadAuditLog()]);
