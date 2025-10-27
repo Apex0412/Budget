@@ -1,5 +1,5 @@
 param(
-    [string]$Output
+    [switch]$All
 )
 
 $projectPath = (Resolve-Path "$PSScriptRoot\..\..").Path
@@ -37,23 +37,15 @@ if (-not $compose) {
     exit 1
 }
 
-$backupDir = Join-Path $projectPath 'backups'
-if (-not (Test-Path $backupDir)) {
-    New-Item -ItemType Directory -Path $backupDir | Out-Null
-}
-
-if (-not $Output) {
-    $Output = Join-Path $backupDir ("finanses_{0}.sql" -f (Get-Date -Format 'yyyyMMdd_HHmmss'))
-} elseif (-not (Test-Path (Split-Path $Output -Parent))) {
-    New-Item -ItemType Directory -Path (Split-Path $Output -Parent) | Out-Null
-}
-
-Write-Host "[FINANSES] Создаём дамп в $Output"
-$command = @('exec', '-T', 'db', 'mysqldump', '-u', 'root', '-proot', 'finanses')
 if ($compose.UseDocker) {
-    & docker compose @command | Out-File -FilePath $Output -Encoding utf8
+    docker compose down --volumes --remove-orphans
 } else {
-    & docker-compose @command | Out-File -FilePath $Output -Encoding utf8
+    docker-compose down --volumes --remove-orphans
 }
 
-Write-Host '[FINANSES] Дамп готов.'
+if ($All.IsPresent) {
+    Write-Host '[FINANSES] Полная очистка docker system prune -a --volumes -f'
+    docker system prune -a --volumes -f
+}
+
+Write-Host '[FINANSES] Очистка завершена.'

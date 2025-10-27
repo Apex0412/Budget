@@ -7,13 +7,36 @@ use Finanses\Helpers;
 
 $type = $_GET['type'] ?? 'app';
 
-if ($type === 'db') {
-    try {
-        Database::connection()->query('SELECT 1');
-        Helpers::jsonResponse(['ok' => true, 'status' => 'db_ok']);
-    } catch (\Throwable $e) {
-        Helpers::jsonResponse(['ok' => false, 'status' => 'db_error', 'error' => $e->getMessage()], 500);
-    }
+$dbStatus = [
+    'ok' => false,
+    'error' => null,
+];
+
+try {
+    Database::connection()->query('SELECT 1');
+    $dbStatus['ok'] = true;
+} catch (\Throwable $e) {
+    $dbStatus['error'] = $e->getMessage();
 }
 
-Helpers::jsonResponse(['ok' => true, 'status' => 'app_ok']);
+if ($type === 'db') {
+    if ($dbStatus['ok']) {
+        Helpers::jsonResponse(['ok' => true, 'status' => 'db_ok']);
+    }
+
+    Helpers::jsonResponse([
+        'ok' => false,
+        'status' => 'db_error',
+        'error' => $dbStatus['error'] ?? 'unknown',
+    ], 500);
+}
+
+if ($dbStatus['ok']) {
+    Helpers::jsonResponse(['ok' => true, 'status' => 'app_ok']);
+}
+
+Helpers::jsonResponse([
+    'ok' => false,
+    'status' => 'app_error',
+    'error' => $dbStatus['error'] ?? 'unknown',
+], 500);

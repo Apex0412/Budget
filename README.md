@@ -1,6 +1,10 @@
 # FINANSES — система заявок на закупки
 
-Добро пожаловать в **FINANSES** — современное PHP‑веб-приложение (PHP 8.1 + Apache + MySQL 8 + Composer), предназначенное для автоматизации служебных записок на закупку в муниципальном учреждении. Проект «запускается из коробки», сопровождается Docker‑окружением, миграциями, сидерами и подробными инструкциями по установке на Windows (XAMPP), Windows + WSL, Linux, macOS и через Docker.
+Полноценное веб-приложение для муниципального учреждения: учёт заявок на закупку, контроль статусов, аудит действий и формирование официальных PDF‑документов. Основной стек — **PHP 8.2 + Apache + MySQL 8 + Composer + Bootstrap 5 + Vanilla JS + mPDF**. Проект запускается «из коробки» на Windows (включая XAMPP и WSL 2), Linux, macOS и в Docker.
+
+> 💡 Скриншоты интерфейса, архитектурные схемы и API-спецификация находятся в папке [`docs/`](finanses/docs).
+
+---
 
 ## 📚 Оглавление
 - [О проекте](#-о-проекте)
@@ -12,50 +16,66 @@
   - [C. Linux (Ubuntu/Debian)](#c-linux-ubuntudebian)
   - [D. macOS (Homebrew)](#d-macos-homebrew)
   - [E. Docker](#e-docker)
-  - [F. Nginx + PHP-FPM](#f-nginx--php-fpm)
-  - [G. HTTPS (self-signed)](#g-https-self-signed)
-- [.env примеры](#-env-примеры)
+  - [F. Nginx + PHP-FPM (опционально)](#f-nginx--php-fpm-опционально)
+  - [G. HTTPS (self-signed, опционально)](#g-https-self-signed-опционально)
+- [.env шаблоны](#-env-шаблоны)
 - [Полезные команды](#-полезные-команды)
 - [Частые ошибки и решения](#-частые-ошибки-и-решения)
 - [Проверка после установки](#-проверка-после-установки)
 - [Удаление или обновление](#-удаление-или-обновление)
+- [Acceptance / Smoke checklist](#-acceptance--smoke-checklist)
 
 ---
 
-## 📌 О проекте
-- **Назначение:** прием, согласование и ведение закупочных заявок.
-- **Технологический стек:** PHP 8.1, Apache, MySQL 8, Composer, Bootstrap 5, Vanilla JS, mPDF, vlucas/phpdotenv.
-- **Главные функции:**
-  - ролевая модель (admin/user/viewer), сессии и смена темы интерфейса;
-  - заявки с позициями, статусами, приоритетами, дедлайнами и файлами;
-  - каталоги материалов, категорий и единиц измерения;
-  - генерация PDF по шаблону служебной записки (mPDF);
-  - аудит действий, отчётность (Chart.js), экспорт CSV;
-  - API (REST, JSON) + OpenAPI документация.
-- **Варианты развёртывания:** Windows (XAMPP), Windows + WSL 2, Linux, macOS (Homebrew), Docker, Nginx + PHP-FPM.
+## ℹ️ О проекте
+- **Назначение:** фиксация служебных записок, согласование, печать и выгрузка закупочных заявок.
+- **Основные модули:**
+  - роли *admin / user / viewer*, смена темы (light/dark), смена пароля;
+  - заявки с позициями, статусами, приоритетами, дедлайнами, комментариями и файлами;
+  - каталоги материалов/категорий/единиц измерения, быстрый поиск;
+  - генерация служебной записки в PDF (mPDF, кириллица, бренд МБУ);
+  - аудит действий, отчёты (Chart.js), экспорт CSV/XLSX, healthcheck-эндпоинты;
+  - API REST (JSON) + OpenAPI 3.0 (`docs/openapi.yaml`).
+- **Стек:** PHP 8.2, Apache, MySQL 8 (utf8mb4), Composer, Bootstrap 5, Vanilla JS, mPDF, vlucas/phpdotenv.
+- **Деплой:** Docker (php:8.2-apache + mysql:8), XAMPP, WSL 2/Ubuntu, Linux, macOS, Nginx + PHP-FPM.
 
 ## ✅ Что понадобится
-- Свободный порт **80** (или 8080, 8000) и порт **3306** для MySQL.
-- Права администратора/`sudo` для установки пакетов и служб.
-- Доступ к интернету (загрузка зависимостей Composer, пакетов ОС).
-- PHP 8.1 с включёнными расширениями **bcmath, exif, gd, intl, mbstring, soap, zip** (рекомендуются также gmp, pcntl, sodium).
+- Свободный порт **8080** (Docker) или **80** (локальный Apache/Nginx), порт **3306** для MySQL.
+- Права администратора / `sudo` для установки пакетов и служб.
+- Интернет для загрузки пакетов и зависимостей Composer.
+- В Docker Desktop включите WSL 2 backend (Windows) и Virtualization.
+- Без Docker: PHP 8.2 с расширениями **pdo_mysql, mysqli, gd, intl, mbstring, bcmath, exif, zip, soap** (рекомендуются gmp, pcntl).
 
 ## ⚡ Быстрый старт
-### Docker (рекомендуется)
+
+### 1. Windows + Docker Desktop (самый быстрый путь)
+1. Скачайте проект (ZIP или Git) и распакуйте в `C:\finanses`.
+2. Откройте **PowerShell от имени администратора**.
+3. Разрешите временно выполнение скриптов:
+   ```bash
+   Set-ExecutionPolicy -Scope Process Bypass
+   ```
+4. Запустите автоматизацию:
+   ```bash
+   C:\finanses\finanses\scripts\windows\docker-up.ps1
+   ```
+5. Дождитесь сообщения `Готово!` и откройте http://localhost:8080.
+6. Авторизуйтесь: **логин** `admin`, **пароль** `admin123` (при первом входе система попросит сменить пароль).
+
+### 2. Docker (Linux/macOS/WSL)
 ```bash
-bash <(curl -fsSL https://get.docker.com)
-docker compose up --build -d
-docker compose logs -f app
-# После появления сообщения "[entrypoint] Database already initialised" откройте http://localhost:8080
+cd /path/to/finanses/finanses
+./scripts/unix/docker-up.sh
+# После завершения откройте http://localhost:8080 (admin / admin123)
 ```
 
-### WSL/Ubuntu (root-права)
+### 3. Минимум команд для WSL/Ubuntu
 ```bash
-sudo apt update && sudo apt install -y apache2 mysql-server php8.1 php8.1-cli libapache2-mod-php8.1 \
-    php8.1-mysql php8.1-xml php8.1-mbstring php8.1-curl php8.1-zip php8.1-gd \
-    php8.1-intl php8.1-bcmath php8.1-exif php8.1-soap php8.1-gmp composer unzip git
+sudo apt update && sudo apt install -y apache2 mysql-server php8.2 php8.2-cli libapache2-mod-php8.2 \
+    php8.2-mysql php8.2-xml php8.2-mbstring php8.2-curl php8.2-zip php8.2-gd \
+    php8.2-intl php8.2-bcmath php8.2-exif php8.2-soap php8.2-gmp composer unzip git
 cd /var/www/html
-git clone https://github.com/Apex0412/Budget.git finanses
+sudo git clone https://github.com/Apex0412/Budget.git finanses
 cd finanses/finanses
 composer install
 php database/cli.php migrate
@@ -68,96 +88,77 @@ sudo systemctl restart apache2
 ## 🛠️ Установка по платформам
 
 ### A. Windows (XAMPP)
-**Шаг 1.** Скачайте и установите [XAMPP](https://www.apachefriends.org/ru/index.html). В мастере оставьте компоненты Apache, MySQL, PHP, phpMyAdmin.
+**Шаг 1.** Скачайте [XAMPP](https://www.apachefriends.org/ru/index.html) и установите (оставьте галочки Apache, MySQL, PHP, phpMyAdmin).
 
-**Шаг 2.** Запустите **XAMPP Control Panel**, включите модули *Apache* и *MySQL*. Убедитесь, что индикаторы зелёные.
+**Шаг 2.** Запустите *XAMPP Control Panel*, включите Apache и MySQL (зелёные индикаторы).
 
-**Шаг 3.** Скачайте проект:
+**Шаг 3.** Получите исходники:
 - **Git:**
   ```bash
   cd C:\xampp\htdocs
   git clone https://github.com/Apex0412/Budget.git finanses
   ```
-- **ZIP-архив:**
-  ```powershell
-  Invoke-WebRequest https://github.com/Apex0412/Budget/archive/refs/heads/work.zip -OutFile work.zip
-  Expand-Archive work.zip -DestinationPath C:\xampp\htdocs\Budget-work
-  Move-Item C:\xampp\htdocs\Budget-work\Budget-work\finanses C:\xampp\htdocs\finanses -Force
-  Remove-Item work.zip
-  Remove-Item C:\xampp\htdocs\Budget-work -Recurse -Force
+- **ZIP:**
+  ```bash
+  cd C:\xampp\htdocs
+  curl -L -o finanses.zip https://github.com/Apex0412/Budget/archive/refs/heads/work.zip
+  tar -xf finanses.zip
+  move Budget-work\finanses finanses
   ```
-  *Подсказка:* архив распаковывается в подпапку `Budget-work`. После перемещения убедитесь, что структура `finanses/public`, `finanses/src`, `finanses/vendor` сохранена.
+  > Проверьте структуру: `C:\xampp\htdocs\finanses\public\index.php`.
 
-**Шаг 4.** Установите [Composer for Windows](https://getcomposer.org/download/). После установки проверьте:
-```powershell
+**Шаг 4.** Установите [Composer for Windows](https://getcomposer.org/download/). Проверьте:
+```bash
 composer -V
 ```
-Дополнительно убедитесь, что активны модули **gd, intl, mbstring, bcmath, exif, soap, zip** (они требуются приложению):
-```powershell
-php -m | findstr /I "gd"
-php -m | findstr /I "intl"
-php -m | findstr /I "mbstring"
-php -m | findstr /I "bcmath"
-php -m | findstr /I "exif"
-php -m | findstr /I "soap"
-php -m | findstr /I "zip"
-```
-Если какое-то расширение отсутствует, откройте `C:\xampp\php\php.ini`, найдите строку вида `;extension=intl`, удалите точку с запятой и перезапустите Apache через XAMPP Control Panel.
 
-**Шаг 5.** Откройте `http://localhost/phpmyadmin`, создайте БД `finanses`. Импортируйте `schema.sql` или выполните миграции:
+**Шаг 5.** Подготовьте БД через phpMyAdmin:
 ```bash
-cd C:\xampp\htdocs\finanses\finanses
+# В браузере откройте http://localhost/phpmyadmin
+# Создайте БД finanses (utf8mb4_unicode_ci)
+# Вкладка «Импорт» → выберите finanses/database/schema.sql
+```
+
+**Шаг 6.** Создайте `.env`:
+```bash
+cd C:\xampp\htdocs\finanses
+copy .env.example .env
+# Отредактируйте блок Local (DB_USER=root, DB_PASS пустой)
+```
+
+**Шаг 7.** Установите зависимости и выполните миграции:
+```bash
+cd C:\xampp\htdocs\finanses
+composer install
 php database/cli.php migrate
 php database/cli.php seed
 ```
 
-**Шаг 6.** Создайте `.env` по шаблону:
-```bash
-APP_ENV=local
-APP_URL=http://localhost/finanses/public
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_NAME=finanses
-DB_USER=root
-DB_PASS=
-```
+**Шаг 8.** Проверьте запуск: откройте http://localhost/finanses.
 
-**Шаг 7.** Установите зависимости:
-```bash
-composer install
-```
-
-**Шаг 8.** Проверьте сайт в браузере: `http://localhost/finanses/public`. Войдите логином `admin` / паролем `admin123` (при первом входе смените пароль).
-
-**Траблшутинг:**
-- Порт 80 занят → измените порт Apache в `httpd.conf` (Listen 8080) и `httpd-ssl.conf`.
-- Ошибка доступа → смотрите логи `xampp\apache\logs\error.log`.
-- Включите модуль `mod_rewrite` через XAMPP Control Panel → Config → Apache (httpd.conf) → раскомментируйте `LoadModule rewrite_module`.
-
----
+**Мини-траблшутинг:**
+- Порт 80 занят → в XAMPP настройте Apache на 8080 (Config → httpd.conf → `Listen 8080`).
+- `Access denied for user 'root'@'localhost'` → в phpMyAdmin измените пароль root или используйте `mysql -u root`.
+- Не работают ЧПУ → включите `mod_rewrite` (Apache → Config → httpd.conf → раскомментируйте `LoadModule rewrite_module`).
 
 ### B. Windows + WSL 2 (Ubuntu)
-**Шаг 1.** Проверьте WSL2:
-```powershell
+**Шаг 1.** Проверьте WSL 2 и виртуализацию:
+```bash
 wsl --status
 ```
-Если выключено, включите компоненты «Virtual Machine Platform» и «Windows Subsystem for Linux».
+Если виртуализация отключена — включите *Virtual Machine Platform* и *Windows Subsystem for Linux* (через «Включение компонентов Windows»), перезагрузитесь.
 
-**Шаг 2.** Установите Ubuntu из Microsoft Store, задайте пользователя.
-
-**Шаг 3.** В Ubuntu обновите систему и установите стек:
+**Шаг 2.** Установите Ubuntu из Microsoft Store, запустите и обновите систему:
 ```bash
 sudo apt update && sudo apt upgrade -y
-sudo apt install -y apache2 mysql-server php8.1 php8.1-cli libapache2-mod-php8.1 \
-    php8.1-mysql php8.1-xml php8.1-mbstring php8.1-curl php8.1-zip php8.1-gd \
-    php8.1-intl php8.1-bcmath php8.1-exif php8.1-soap php8.1-gmp composer unzip git
-sudo service mysql start
 ```
-Проверьте, что ключевые расширения активны (**gd, intl, mbstring, bcmath, exif, soap, zip**):
+
+**Шаг 3.** Поставьте стек LAMP и Composer:
 ```bash
-php -m | grep -Ei 'gd|intl|mbstring|bcmath|exif|soap|zip'
+sudo apt install -y apache2 mysql-server php8.2 php8.2-cli libapache2-mod-php8.2 \
+    php8.2-mysql php8.2-xml php8.2-mbstring php8.2-curl php8.2-zip php8.2-gd \
+    php8.2-intl php8.2-bcmath php8.2-exif php8.2-soap php8.2-gmp composer unzip git
 ```
-Если каких-то модулей нет, установите пакеты `sudo apt install php8.1-<module>` (например, `php8.1-intl`) и перезапустите Apache.
 
 **Шаг 4.** Скачайте проект:
 ```bash
@@ -166,262 +167,353 @@ sudo git clone https://github.com/Apex0412/Budget.git finanses
 sudo chown -R $USER:www-data finanses
 ```
 
-**Шаг 5.** Права и зависимости:
+**Шаг 5.** Права и каталоги:
 ```bash
-cd /var/www/html/finanses/finanses
+cd /var/www/html/finanses
 sudo chmod -R 775 storage
-composer install
 ```
 
-**Шаг 6.** Создайте БД и пользователя:
+**Шаг 6.** Запустите MySQL и создайте БД:
 ```bash
+sudo service mysql start
 sudo mysql -e "CREATE DATABASE finanses CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-sudo mysql -e "CREATE USER 'finanses'@'%' IDENTIFIED BY 'finanses';"
-sudo mysql -e "GRANT ALL PRIVILEGES ON finanses.* TO 'finanses'@'%';"
 ```
-Если получаете `Access denied`, войдите `sudo mysql`, выполните `ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'root';`.
+Если видите `Access denied` — войдите `sudo mysql` и выполните `ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '';`.
 
-**Шаг 7.** Импорт схемы:
+**Шаг 7.** Импортируйте схему:
 ```bash
-mysql -u root -p finanses < schema.sql
-php database/cli.php seed
+mysql -u root -p finanses < database/schema.sql
 ```
 
-**Шаг 8.** Создайте `.env` (локальная БД WSL):
+**Шаг 8.** Настройте `.env` (локальный блок):
 ```bash
-APP_ENV=local
-APP_URL=http://localhost/finanses/public
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_NAME=finanses
-DB_USER=root
-DB_PASS=
+cp .env.example .env
+# DB_HOST=127.0.0.1, DB_USER=root, DB_PASS= (пусто)
 ```
-Для подключения к MySQL в XAMPP укажите `DB_HOST=<адрес из cat /etc/resolv.conf (nameserver)>`.
+Если база в XAMPP (Windows), используйте IP шлюза из `cat /etc/resolv.conf`.
 
-**Шаг 9.** Включите `AllowOverride All` в `/etc/apache2/sites-available/000-default.conf`, перезапустите Apache:
+**Шаг 9.** Миграции и сиды:
 ```bash
-sudo a2enmod rewrite
-sudo systemctl restart apache2
-```
-
-**Ошибки:**
-- `HCS_E_SERVICE_NOT_AVAILABLE` → включите виртуализацию в BIOS и службы Hyper-V/WSL.
-- Логи Apache: `/var/log/apache2/error.log`; MySQL: `/var/log/mysql/error.log`.
-
----
-
-### C. Linux (Ubuntu/Debian)
-Повторите шаги WSL, исключая особенности Windows. Используйте `/var/www/html/finanses`, создайте `.env`, выполните миграции, настройте виртуальный хост Apache и перезапустите службу.
-Проверьте расширения **gd, intl, mbstring, bcmath, exif, soap, zip** (`php -m | grep -Ei 'gd|intl|mbstring|bcmath|exif|soap|zip'`) и при необходимости установите недостающие `sudo apt install php8.1-<module>`.
-
----
-
-### D. macOS (Homebrew)
-**Шаг 1.** Установите [Homebrew](https://brew.sh).
-
-**Шаг 2.** Пакеты:
-```bash
-brew install php apache2 mysql composer git
-sudo apachectl start
-brew services start mysql
-```
-Проверьте, что активны модули **gd, intl, mbstring, bcmath, exif, soap, zip**:
-```bash
-php -m | egrep -i 'gd|intl|mbstring|bcmath|exif|soap|zip'
-```
-Если чего-то не хватает, выполните `brew reinstall php` и перезапустите Apache — большинство расширений входит в комплект Homebrew-PHP.
-
-**Шаг 3.** Каталог проекта:
-```bash
-cd /usr/local/var/www
-git clone https://github.com/Apex0412/Budget.git finanses
-cd finanses/finanses
 composer install
 php database/cli.php migrate
 php database/cli.php seed
 ```
 
-**Шаг 4.** Настройте `/usr/local/etc/httpd/httpd.conf`:
-- `DocumentRoot "/usr/local/var/www/finanses/public"`
-- Разрешите `AllowOverride All`, активируйте `mod_rewrite`.
-
-**Шаг 5.** Пример `.env`:
+**Шаг 10.** Виртуальный хост Apache (`/etc/apache2/sites-available/finanses.conf`):
 ```bash
-APP_ENV=local
-APP_URL=http://localhost
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_NAME=finanses
-DB_USER=root
-DB_PASS=
+sudo tee /etc/apache2/sites-available/finanses.conf <<'CONF'
+<VirtualHost *:80>
+    ServerName localhost
+    DocumentRoot /var/www/html/finanses/public
+    <Directory /var/www/html/finanses/public>
+        AllowOverride All
+        Require all granted
+    </Directory>
+    ErrorLog ${APACHE_LOG_DIR}/finanses_error.log
+    CustomLog ${APACHE_LOG_DIR}/finanses_access.log combined
+</VirtualHost>
+CONF
+sudo a2ensite finanses.conf
+sudo a2enmod rewrite
+sudo systemctl reload apache2
 ```
 
-**Шаг 6.** Перезапустите Apache: `sudo apachectl restart`. Откройте `http://localhost/finanses/public`.
+**Шаг 11.** Проверьте http://localhost/finanses.
 
----
+**Мини-траблшутинг:**
+- Ошибка `HCS_E_SERVICE_NOT_AVAILABLE` → проверьте включенные компоненты Windows (см. Шаг 1).
+- Нет доступа к стилям → убедитесь в `AllowOverride All` и активном `mod_rewrite`.
+- Нужно подключиться к MySQL в Windows → используйте адрес `host.docker.internal` или IP из `ipconfig` (Windows) / `cat /etc/resolv.conf` (WSL).
+
+### C. Linux (Ubuntu/Debian)
+Последовательность аналогична WSL, но без особенностей Windows:
+```bash
+sudo apt update && sudo apt upgrade -y
+sudo apt install -y apache2 mysql-server php8.2 php8.2-cli libapache2-mod-php8.2 \
+    php8.2-mysql php8.2-xml php8.2-mbstring php8.2-curl php8.2-zip php8.2-gd \
+    php8.2-intl php8.2-bcmath php8.2-exif php8.2-soap php8.2-gmp composer unzip git
+cd /var/www/html
+sudo git clone https://github.com/Apex0412/Budget.git finanses
+sudo chown -R $USER:www-data finanses
+cd finanses
+composer install
+php database/cli.php migrate
+php database/cli.php seed
+sudo tee /etc/apache2/sites-available/finanses.conf <<'CONF'
+<VirtualHost *:80>
+    ServerName localhost
+    DocumentRoot /var/www/html/finanses/public
+    <Directory /var/www/html/finanses/public>
+        AllowOverride All
+        Require all granted
+    </Directory>
+</VirtualHost>
+CONF
+sudo a2ensite finanses.conf
+sudo a2enmod rewrite
+sudo systemctl reload apache2
+```
+Откройте http://localhost.
+
+### D. macOS (Homebrew)
+**Шаг 1.** Установите Homebrew (если ещё нет): [https://brew.sh](https://brew.sh).
+
+**Шаг 2.** Установите пакеты:
+```bash
+brew install php apache2 mysql composer git
+sudo apachectl start
+brew services start mysql
+```
+
+**Шаг 3.** Скопируйте проект:
+```bash
+cd /usr/local/var/www
+git clone https://github.com/Apex0412/Budget.git finanses
+cd finanses/finanses
+composer install
+```
+
+**Шаг 4.** Настройте `httpd.conf` (Apache):
+- Включите `LoadModule rewrite_module modules/mod_rewrite.so`.
+- Добавьте виртуальный хост:
+```bash
+sudo tee /usr/local/etc/httpd/vhosts/finanses.conf <<'CONF'
+<VirtualHost *:80>
+    DocumentRoot "/usr/local/var/www/finanses/finanses/public"
+    ServerName localhost
+    <Directory "/usr/local/var/www/finanses/finanses/public">
+        AllowOverride All
+        Require all granted
+    </Directory>
+</VirtualHost>
+CONF
+sudo apachectl restart
+```
+
+**Шаг 5.** Создайте БД и выполните миграции (см. Linux-процедуру). Откройте http://localhost.
 
 ### E. Docker
-**Шаг 1.** Установите Docker Desktop (Windows/macOS) или Docker Engine (Linux).
+**Шаг 1.** Убедитесь, что Docker Desktop (Windows/macOS) или Docker Engine (Linux) запущены.
 
-**Шаг 2.** Поднимите стек (образ пересобирается автоматически при изменении `Dockerfile`):
+**Шаг 2.** Запустите скрипт:
 ```bash
-docker compose up --build -d
-docker compose logs -f app
+cd /path/to/finanses/finanses
+./scripts/unix/docker-up.sh              # Linux/macOS/WSL
+# или
+powershell -ExecutionPolicy Bypass -File scripts/windows/docker-up.ps1   # Windows
 ```
-Оставьте вторую команду открытой, пока не увидите сообщения `Installing Composer dependencies`, `Running database migrations and seeders` и `Database already initialised` — контейнер сам установит зависимости, применит миграции и создаст администратора `admin/admin123`.
+Скрипт автоматически:
+- создаёт `.env` (при необходимости),
+- собирает образы (`php:8.2-apache`, `mysql:8`),
+- ждёт готовности MySQL и приложения (healthcheck),
+- выполняет `composer install`, миграции и сиды,
+- сообщает ссылку http://localhost:8080.
 
-**Шаг 3.** (Необязательно) Убедитесь, что приложение отвечает:
+**Шаг 3.** Логин `admin`, пароль `admin123`.
+
+**Остановка и очистка:**
 ```bash
-curl -f http://localhost:8080/api/health.php?type=app
-```
-В ответ ожидайте JSON `{"ok":true,"status":"app_ok"}`. Проверка базы: `curl -f http://localhost:8080/api/health.php?type=db`.
-
-**Шаг 4.** Откройте `http://localhost:8080` в браузере — вы увидите форму входа. Все необходимые расширения (gd, intl, mbstring, bcmath, exif, soap, zip, gmp, pcntl и др.) уже установлены в образе.
-
-**Шаг 5.** При необходимости ручного повторного импорта БД используйте:
-```bash
-docker exec -i $(docker compose ps -q db) mysql -u root -proot finanses < schema.sql
-```
-
-#### Docker на Windows (PowerShell, автоматический запуск)
-Если не хотите вводить команды по одной, используйте готовый скрипт.
-
-1. Откройте **PowerShell от имени администратора** и перейдите в корень репозитория (`C:\...\Budget`).
-2. Временно разрешите выполнение скриптов только для этой сессии (без изменения глобальной политики):
-   ```powershell
-   Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-   ```
-   > Нужно постоянное разрешение? Используйте `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`.
-3. Запустите сценарий автоматической сборки и запуска контейнеров:
-   ```powershell
-   .\finanses\scripts\windows\docker-up.ps1
-   ```
-   Скрипт сам определит, доступен ли `docker compose` или `docker-compose`, выполнит `down`, `build`, `up -d`, дождётся успешного healthcheck и выведет ссылку `http://localhost:8080`.
-4. Нужно пересобрать образ без кеша? Добавьте флаг:
-   ```powershell
-   .\finanses\scripts\windows\docker-up.ps1 -NoCache
-   ```
-5. Остановка стека:
-   ```powershell
-   docker compose down
-   ```
-
-> 💡 Проект лежит в другом каталоге? Передайте путь до директории с `docker-compose.yml` (`...\Budget\finanses`):
-> ```powershell
-> .\finanses\scripts\windows\docker-up.ps1 -ProjectPath "D:\\projects\\Budget\\finanses"
-> ```
-> Скрипт проверит наличие Docker Desktop, сообщит, если команда compose недоступна, и не продолжит выполнение при ошибке.
-
----
-
-### F. Nginx + PHP-FPM
-**Шаг 1.** Установите nginx и php-fpm (`sudo apt install nginx php8.1-fpm`).
-
-**Шаг 2.** Используйте `nginx.conf` из репозитория. Укажите `root /var/www/finanses/public;`.
-
-**Шаг 3.** Перезапустите:
-```bash
-sudo systemctl enable php8.1-fpm nginx
-sudo systemctl restart php8.1-fpm nginx
+# Linux/macOS/WSL
+./scripts/unix/docker-clean.sh            # --all для полной очистки
+# Windows
+powershell -ExecutionPolicy Bypass -File scripts/windows/docker-clean.ps1
 ```
 
----
+### F. Nginx + PHP-FPM (опционально)
+```bash
+sudo apt install -y nginx php8.2-fpm
+sudo tee /etc/nginx/sites-available/finanses <<'CONF'
+server {
+    listen 80;
+    server_name localhost;
+    root /var/www/finanses/finanses/public;
+    index index.php index.html;
 
-### G. HTTPS (self-signed)
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    location ~ \.php$ {
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/run/php/php8.2-fpm.sock;
+    }
+
+    location ~ /storage/(uploads|pdf)/ {
+        deny all;
+    }
+}
+CONF
+sudo ln -s /etc/nginx/sites-available/finanses /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl reload nginx
+```
+
+### G. HTTPS (self-signed, опционально)
 ```bash
 sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-  -keyout /etc/ssl/private/finanses.key \
-  -out /etc/ssl/certs/finanses.crt
-```
-Добавьте в Apache VirtualHost:
-```
-<VirtualHost *:443>
-  SSLEngine on
-  SSLCertificateFile /etc/ssl/certs/finanses.crt
-  SSLCertificateKeyFile /etc/ssl/private/finanses.key
-</VirtualHost>
+    -keyout /etc/ssl/private/finanses.key \
+    -out /etc/ssl/certs/finanses.crt \
+    -subj "/C=RU/ST=Moscow/L=Serpukhov/O=MBU/OU=IT/CN=localhost"
+# Apache (VirtualHost *:443) или Nginx (listen 443 ssl) добавьте пути к сертификатам.
 ```
 
 ---
 
-## 🌱 .env примеры
-**Docker:**
-```
+## 🧾 .env шаблоны
+**Docker (по умолчанию):**
+```bash
 APP_ENV=local
+APP_DEBUG=true
 APP_URL=http://localhost:8080
+SESSION_NAME=finanses_session
+SESSION_LIFETIME=1800
+USE_JWT=false
+JWT_SECRET=change_me_secret
 DB_HOST=db
 DB_PORT=3306
 DB_NAME=finanses
 DB_USER=finanses
 DB_PASS=finanses
+FILE_STORAGE_PATH=storage/uploads
+PDF_STORAGE_PATH=storage/pdf
+LOG_PATH=storage/logs/app.log
+MAX_UPLOAD_SIZE=5242880
+ALLOWED_UPLOAD_MIME=application/pdf,image/png,image/jpeg,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+PASSWORD_POLICY_MIN_LENGTH=8
+PDF_ORG_NAME="Муниципальное бюджетное учреждение \"Комбинат благоустройства\""
+PDF_DIRECTOR_NAME="Кравченко К.И."
+PDF_DIRECTOR_POSITION="Директор"
+PDF_SIGNATURE_TITLE="Заместитель директора"
+I18N_DEFAULT=ru
 ```
-> В контейнере файл `.env` создаётся автоматически из шаблона `.env.docker`, поэтому поднимать стек можно без ручного копирования настроек.
 
-**XAMPP / Linux / macOS:**
-```
+**XAMPP / локальный Apache:**
+```bash
 APP_ENV=local
-APP_URL=http://localhost/finanses/public
+APP_DEBUG=true
+APP_URL=http://localhost/finanses
+SESSION_NAME=finanses_session
+SESSION_LIFETIME=1800
+USE_JWT=false
+JWT_SECRET=change_me_secret
 DB_HOST=127.0.0.1
 DB_PORT=3306
 DB_NAME=finanses
 DB_USER=root
 DB_PASS=
+FILE_STORAGE_PATH=storage/uploads
+PDF_STORAGE_PATH=storage/pdf
+LOG_PATH=storage/logs/app.log
+MAX_UPLOAD_SIZE=5242880
+ALLOWED_UPLOAD_MIME=application/pdf,image/png,image/jpeg,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+PASSWORD_POLICY_MIN_LENGTH=8
+PDF_ORG_NAME="Муниципальное бюджетное учреждение \"Комбинат благоустройства\""
+PDF_DIRECTOR_NAME="Кравченко К.И."
+PDF_DIRECTOR_POSITION="Директор"
+PDF_SIGNATURE_TITLE="Заместитель директора"
+I18N_DEFAULT=ru
 ```
 
-**WSL + XAMPP MySQL:**
-```
-APP_ENV=local
-APP_URL=http://localhost/finanses/public
-DB_HOST=172.28.48.1   # адрес шлюза, смотрите `cat /etc/resolv.conf`
-DB_PORT=3306
-DB_NAME=finanses
+**WSL (MySQL в Linux):** (аналогично XAMPP, DB_HOST=127.0.0.1)
+
+**WSL + база в Windows/XAMPP:**
+```bash
+DB_HOST=172.28.48.1   # IP шлюза из `cat /etc/resolv.conf`
 DB_USER=root
 DB_PASS=
+```
+
+**Docker Compose (production-подобный):**
+```bash
+APP_ENV=prod
+APP_DEBUG=false
+APP_URL=https://finanses.example.com
+DB_HOST=db
+DB_USER=finanses
+DB_PASS=finanses
+LOG_PATH=storage/logs/app.log
 ```
 
 ---
 
 ## 🧰 Полезные команды
 ```bash
-composer install            # установка зависимостей
-php database/cli.php migrate  # миграции
-php database/cli.php seed     # сиды
-php database/cli.php rollback # откат
-make up / make down         # запуск/остановка docker-compose
-make db-dump / make db-restore
-systemctl restart apache2   # перезапуск Apache (Linux)
-php -v / mysql --version
+php -v                               # проверка версии PHP
+composer install                     # установка зависимостей
+php database/cli.php migrate         # миграции
+php database/cli.php seed            # заполнение начальными данными
+docker compose up -d                # запуск Docker-сервисов
+docker compose logs -f app          # просмотр логов приложения
+./scripts/unix/docker-up.sh         # автоматический запуск (Linux/macOS)
+./scripts/unix/docker-clean.sh --all
+powershell -File scripts/windows/docker-up.ps1     # автоматический запуск (Windows)
+powershell -File scripts/windows/docker-clean.ps1 -All   # полная очистка Docker на Windows
+powershell -File scripts/windows/db_dump.ps1             # бэкап БД (Windows)
+powershell -File scripts/windows/db_restore.ps1          # восстановление БД (Windows)
+make up                              # запуск через Makefile
+make db-dump                         # дамп БД (Docker)
+make db-restore FILE=backups/file.sql
 ```
-Логи: `storage/logs/app.log`, Apache — `/var/log/apache2/error.log`, MySQL — `/var/log/mysql/error.log`.
+Логи приложения: `finanses/storage/logs/app.log`. Логи Apache/Nginx/MySQL см. в каталогах `/var/log/` или панелях управления.
 
 ---
 
-## 🧯 Частые ошибки и решения
-- **Порт 80 занят:** измените порт Apache/Nginx (Listen 8080). В XAMPP меняйте и `httpd-ssl.conf`.
-- **`Access denied for user 'root'@'localhost'`:** выполните `sudo mysql`, затем `ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY 'root';`.
-- **`HCS_E_SERVICE_NOT_AVAILABLE` (WSL):** включите виртуализацию в BIOS, службы Hyper-V, перезагрузите ПК.
-- **`php8.1-json` отсутствует:** модуль JSON встроен в PHP 8, отдельный пакет не нужен.
-- **Ошибка `TEXT/BLOB column can't have default`:** в MySQL нельзя задавать DEFAULT для TEXT/BLOB — используйте сиды/обновления.
+## 🚑 Частые ошибки и решения
+| Проблема | Решение |
+| --- | --- |
+| `Port 80 in use` | Освободите порт или смените на 8080 (Apache/Nginx, Docker). |
+| `Access denied for user 'root'@'localhost'` | Настройте пароль root в MySQL (`ALTER USER ... IDENTIFIED WITH mysql_native_password`). |
+| `HCS_E_SERVICE_NOT_AVAILABLE` (WSL) | Включите компоненты Windows и перезагрузитесь. |
+| Отсутствует `ext-gd`/`ext-intl` | Пересоберите Docker (`docker compose build --no-cache`) или установите пакеты PHP (`apt install php8.2-gd intl`). |
+| Healthcheck не проходит | `docker compose logs -f app db` → проверьте подключение к БД и `.env`. |
+| Не грузятся стили | Проверьте `AllowOverride All` и `mod_rewrite`. |
+| Upload не работает | Убедитесь, что каталог `storage/uploads` имеет права 775 и `.htaccess` запрещает выполнение PHP. |
 
 ---
 
-## 🔎 Проверка после установки
-1. Откройте `http://localhost/finanses/public` (или `:8080` в Docker).
-2. Войдите `admin` / `admin123`, смените пароль.
-3. Создайте заявку с позициями, скачайте PDF.
-4. Убедитесь, что отчёты и журнал действий отображают данные.
-
-Дополнительно можно создать `public/check.php` с `mysqli_connect` для диагностики БД (удалите файл после проверки).
+## ✅ Проверка после установки
+1. Откройте http://localhost:8080 (или http://localhost/finanses).
+2. Войдите как `admin` / `admin123` → система потребует сменить пароль.
+3. Создайте заявку с несколькими позициями, прикрепите файл → статус «Черновик»/«Отправлена».
+4. Скачайте PDF (кнопка «PDF»), экспортируйте CSV/XLSX.
+5. Зайдите в «Пользователи» и убедитесь, что CRUD и назначение ролей работают.
+6. Откройте «Отчёты» (Chart.js) и «Журнал действий» (audit_log).
+7. Проверьте healthcheck: http://localhost:8080/api/health.php?type=app.
 
 ---
 
 ## ♻️ Удаление или обновление
-- **Остановить сервисы:** `systemctl stop apache2 mysql` или `docker compose down`.
-- **Обновить проект:** `git pull`, затем `composer install`, миграции.
-- **Бэкап:** используйте `scripts/linux/db_dump.sh` или `scripts/windows/db_dump.ps1`.
-- **Удалить:** удалите каталог проекта и базу данных (`DROP DATABASE finanses;`).
+```bash
+# Остановить Docker
+./scripts/unix/docker-clean.sh --all
+# или на Windows
+powershell -ExecutionPolicy Bypass -File scripts/windows/docker-clean.ps1 -All
+
+# Бэкап перед обновлением
+./scripts/unix/db-dump.sh
+
+# Обновление исходников (Git)
+cd finanses
+git pull
+composer install
+php database/cli.php migrate
+```
+
+Удалить проект (Docker): `docker compose down --volumes`, удалить каталог `finanses`.
 
 ---
 
-Готово! FINANSES развернут и готов к эксплуатации. Ознакомьтесь с дополнительной документацией в директории `docs/` (архитектура, безопасность, деплой) и OpenAPI-спецификацией API.
+## 🧪 Acceptance / Smoke checklist
+- `docker compose build && docker compose up -d` выполняется без ошибок.
+- `http://localhost:8080/api/health.php?type=app` возвращает `{"ok":true}`.
+- `scripts/windows/docker-up.ps1` на чистой Windows + Docker Desktop запускает проект до формы логина.
+- Вход `admin/admin123`, смена пароля и выход работают.
+- CRUD заявок, загрузка файлов, генерация PDF/CSV/XLSX функционируют.
+- Управление пользователями и ролями доступно только администратору.
+- `./scripts/unix/db-dump.sh` и `db-restore.sh` создают/восстанавливают бэкапы.
+- В `storage/logs/app.log` фиксируются действия (create_request, update_status, export_report и др.).
+- Health endpoints `/api/health.php?type=app|db` отвечают корректно.
+- В репозитории нет `.env`, секретов и дампов.
+- Интерфейс Bootstrap 5 отображается без артефактов в актуальных браузерах.
+
+Следуя этому руководству, даже новичок сможет запустить FINANSES на любой поддерживаемой платформе и получить готовую к работе систему заявок.

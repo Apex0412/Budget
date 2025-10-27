@@ -8,7 +8,7 @@ finanses/
 ├─ views/            # шаблоны и partials (Bootstrap 5)
 ├─ database/         # миграции, сидеры, CLI-инструмент
 ├─ storage/          # логи, файлы, PDF (защищено .htaccess)
-├─ scripts/          # утилиты для Linux/Windows
+├─ scripts/          # утилиты для Linux/macOS (scripts/unix) и Windows (scripts/windows)
 ├─ docs/             # документация (архитектура, деплой, безопасность)
 └─ config/, vendor/  # конфигурация, автозагрузка Composer
 ```
@@ -38,5 +38,5 @@ finanses/
 - Кеширование статики (Apache/Nginx), возможность вынести storage в общую файловую систему или объектное хранилище.
 
 ## Мониторинг
-- Health endpoints: `/public/api/health.php?type=app|db`.
+- Health endpoints: `/api/health.php?type=app|db`.
 - Логи — `storage/logs/app.log` + системные логи веб-сервера/БД.

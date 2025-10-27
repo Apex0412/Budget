@@ -2,26 +2,26 @@
 
 ## Подготовка окружения
 1. Выберите способ: Docker, Apache, Nginx + PHP-FPM.
-2. Убедитесь в наличии PHP ≥ 8.1, MySQL ≥ 8.0, Composer ≥ 2.x.
-3. Активируйте расширения PHP `bcmath`, `exif`, `gd`, `intl`, `mbstring`, `soap`, `zip` (рекомендуются также `gmp`, `pcntl`, `sodium`).
+2. Убедитесь в наличии PHP ≥ 8.2, MySQL ≥ 8.0, Composer ≥ 2.x.
+3. Активируйте расширения PHP `pdo_mysql`, `mysqli`, `bcmath`, `exif`, `gd`, `intl`, `mbstring`, `soap`, `zip` (рекомендуются `gmp`, `pcntl`).
 4. Настройте резервирование портов (HTTP 80/8080, MySQL 3306).
 
 ## Docker (production-ready)
 ```bash
 git clone https://github.com/Apex0412/Budget.git finanses
 cd finanses/finanses
-cp .env.example .env  # при необходимости задайте PROD-параметры (APP_URL, креды и т.п.)
+cp .env.example .env  # при необходимости измените PROD-параметры (APP_URL, креды и т.п.)
 sed -i 's/APP_ENV=local/APP_ENV=prod/' .env
 docker compose up --build -d
 docker compose logs -f app
 ```
-- entrypoint автоматически установит зависимости, выполнит миграции и сиды; после появления сообщения `Database already initialised` приложение готово.
+- entrypoint автоматически установит зависимости, выполнит миграции и сиды; после сообщения `Database already initialised` приложение готово.
 - для production-оптимизации выполните: `docker compose exec app composer install --no-dev --optimize-autoloader`.
 - Настройте обратный прокси (nginx/Traefik) для HTTPS.
 - Логи Apache/PHP доступны через `docker compose logs app`, MySQL — `docker compose logs db`.
 
 ## Bare-metal Apache
-1. Установите Apache + PHP модуль (`libapache2-mod-php8.1`) и включите расширения `bcmath`, `exif`, `gd`, `intl`, `mbstring`, `soap`, `zip` (пакеты `php8.1-<module>` для Debian/Ubuntu).
+1. Установите Apache + PHP модуль (`libapache2-mod-php8.2`) и включите расширения `bcmath`, `exif`, `gd`, `intl`, `mbstring`, `soap`, `zip`.
 2. Разверните код в `/var/www/finanses`.
 3. Создайте VirtualHost:
 ```
@@ -42,7 +42,7 @@ docker compose logs -f app
 ## Nginx + PHP-FPM
 1. Скопируйте `nginx.conf` из репозитория в `/etc/nginx/sites-available/finanses`.
 2. Создайте симлинк в `sites-enabled`, перезапустите nginx и php-fpm.
-3. Убедитесь, что сокет php-fpm совпадает (`fastcgi_pass unix:/run/php/php8.1-fpm.sock`).
+3. Убедитесь, что сокет php-fpm совпадает (`fastcgi_pass unix:/run/php/php8.2-fpm.sock`).
 4. Ограничьте доступ к `/storage`, `/database`, `/config`, `/vendor` директивой `deny all`.
 
 ## Настройки .env (production)
@@ -68,7 +68,7 @@ PDF_ORG_NAME="Муниципальное бюджетное учреждение
 - Включите HTTPS (Let's Encrypt / self-signed).
 
 ## Мониторинг и бэкапы
-- Healthcheck: `GET /public/api/health.php?type=app` и `?type=db`.
+- Healthcheck: `GET /api/health.php?type=app` и `GET /api/health.php?type=db`.
 - Бэкап БД: `mysqldump finanses > backup.sql` (или скрипты в `scripts/`).
 - Бэкап файлов: `storage/uploads`, `storage/pdf`.
 
@@ -82,6 +82,5 @@ php database/cli.php seed
 
 ## Безопасность в продакшене
 - Используйте сложные пароли и ограничьте доступ к phpMyAdmin.
-- Размещайте `/storage` вне web-root (Symbolic link) или защищайте `.htaccess`/nginx `deny all`.
-- Настройте fail2ban / rate limiting на уровень веб-сервера (лимит запросов к `/api/auth.php?action=login`).
-
+- Размещайте `/storage` вне web-root (symbolic link) или защищайте `.htaccess`/nginx `deny all`.
+- Настройте fail2ban / rate limiting на уровне веб-сервера (лимит запросов к `/api/auth.php?action=login`).

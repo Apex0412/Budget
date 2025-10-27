@@ -1,43 +1,42 @@
 PROJECT_ROOT := $(shell pwd)
 PHP := php
 COMPOSER := composer
+COMPOSE := docker compose
 
 .PHONY: install migrate seed rollback up down logs db-dump db-restore test lint
 
 install:
-$(COMPOSER) install
+	$(COMPOSER) install
 
 migrate:
-$(PHP) database/cli.php migrate
+	$(PHP) database/cli.php migrate
 
 seed:
-$(PHP) database/cli.php seed
+	$(PHP) database/cli.php seed
 
 rollback:
-$(PHP) database/cli.php rollback
+	$(PHP) database/cli.php rollback
 
 up:
-	docker compose up --build -d
-	docker compose ps
-	@echo "Откройте 'docker compose logs -f app' чтобы увидеть автоматическую установку."
-	@echo "Сервис будет доступен после сообщений entrypoint: http://localhost:8080"
+	$(COMPOSE) up --build -d
+	$(COMPOSE) ps
 
 down:
-docker compose down
+	$(COMPOSE) down --remove-orphans
 
 logs:
-docker compose logs -f
+	$(COMPOSE) logs -f
 
 db-dump:
-docker exec -it $$(docker compose ps -q db) mysqldump -u root -proot finanses > dump.sql
-echo "dump.sql сохранен"
+	mkdir -p backups
+	$(COMPOSE) exec -T db mysqldump -u root -proot finanses > backups/finanses_`date +%Y%m%d_%H%M%S`.sql
 
 db-restore:
-docker exec -i $$(docker compose ps -q db) mysql -u root -proot finanses < dump.sql
-echo "База восстановлена из dump.sql"
+	@if [ -z "$(FILE)" ]; then echo "Use FILE=/path/to/dump.sql make db-restore"; exit 1; fi
+	$(COMPOSE) exec -T db mysql -u root -proot finanses < $(FILE)
 
 test:
-$(PHP) -l public/api/auth.php
+	$(PHP) -l public/api/auth.php
 
 lint:
-$(COMPOSER) validate --no-check-all
+	$(COMPOSER) validate --no-check-all
