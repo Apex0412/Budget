@@ -45,6 +45,25 @@
   ```
 - **ZIP-архив:** скачайте последнюю версию с GitHub: <https://github.com/Apex0412/Budget/archive/refs/heads/work.zip> и распакуйте содержимое в нужную директорию (например, `/var/www/finanses` или `C:\xampp\htdocs\finanses`).
 - После загрузки убедитесь, что структура каталогов сохранилась (`finanses/index.html`, `finanses/api/*.php`, `finanses/app/...`).
+- **Скачать ZIP через консоль (Linux/WSL):**
+  ```bash
+  cd /tmp
+  wget https://github.com/Apex0412/Budget/archive/refs/heads/work.zip -O budget.zip
+  unzip budget.zip
+  # В распакованной папке лежит каталог Budget-work/finanses — перенесите его в нужное место
+  sudo mkdir -p /var/www/finanses
+  sudo cp -r Budget-work/finanses/* /var/www/finanses/
+  sudo chown -R $USER:www-data /var/www/finanses
+  ```
+- **Скачать ZIP через PowerShell (Windows):**
+  ```powershell
+  cd $env:TEMP
+  Invoke-WebRequest -Uri "https://github.com/Apex0412/Budget/archive/refs/heads/work.zip" -OutFile "budget.zip"
+  Expand-Archive -Path .\budget.zip -DestinationPath .\BudgetWork -Force
+  # Скопируйте содержимое каталога BudgetWork\Budget-work\finanses в C:\xampp\htdocs\finanses
+  robocopy .\BudgetWork\Budget-work\finanses C:\xampp\htdocs\finanses /E
+  ```
+  После копирования убедитесь, что в `C:\xampp\htdocs\finanses` находятся файлы `index.html`, папка `api`, `app` и т.д.
 
 ## Требования
 
