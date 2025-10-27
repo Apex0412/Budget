@@ -1,260 +1,220 @@
-# Система заявок на закупку
+# Finanses — система заявок на закупку
 
-Готовый к развертыванию веб-проект на PHP 8.1+/MySQL 8+ для сбора, согласования и учёта заявок на закупку. Фронтенд построен на Vanilla JS и TailwindCSS, серверная генерация PDF осуществляется через TCPDF, а выгрузка XLSX — через PHPSpreadsheet. Репозиторий содержит полный набор файлов, необходимых для установки как на виртуальном/шаред-хостинге, так и на локальной машине под Windows, Linux или в WSL.
+Веб-приложение на PHP 8.1 с Apache и Composer для подачи и обработки заявок на закупку. Руководство ниже описывает установку на Ubuntu в среде WSL 2, чтобы можно было быстро развернуть проект локально.
 
-<!-- Новые функции: автоматический подбор единиц, загрузка вложений, графики Chart.js, расширенный аудит -->
+## Требования к окружению
 
-## Новое в этой сборке
+- WSL 2 с дистрибутивом Ubuntu 22.04 LTS или новее.
+- Права sudo в системе.
+- Подключение к интернету для установки пакетов.
+- Apache 2.4+, PHP 8.1 с необходимыми модулями, Composer, MySQL или MariaDB.
 
-- **Статусы процесса.** Добавлен статус «На доработке» и полностью переработан диалог смены статусов: администратор видит описание каждой стадии и может мгновенно согласовать, отклонить или вернуть заявку.
-- **Приоритеты и дедлайны.** Заявки теперь поддерживают уровни срочности (обычный/срочный/критический) и желаемую дату исполнения; приоритет отображается цветовой меткой в кабинете и отчётах.
-- **Вложения к заявкам.** Пользователь прикрепляет документы (PDF, офисные файлы, изображения), которые хранятся в защищённой папке `/uploads`; скачивание доступно только автору и администраторам.
-- **Профессиональный PDF-шаблон.** Формируется документ «Обоснование к закупке …» с адресным блоком, основанием, перечнем обслуживаемых объектов, таблицами назначения/остатков/распределения и подписью; основные строки задаются в `.env`.
-- **Аналитика и отчёты.** Панель администратора получила вкладку «Отчёты» с интерактивными диаграммами Chart.js по статусам, приоритетам, категориям, подразделениям и помесячной динамикой.
-- **Расширенный аудит.** Все ключевые действия (логин, создание заявок, загрузка файлов, экспорт) пишутся в таблицу `audit_log` с IP-адресом; просмотр доступен в отдельной вкладке.
-- **Обновлённый UI.** Кабинет пользователя и админ-панель переоформлены в просторные карточные макеты, удобные для ноутбуков и широких экранов.
+## Пошаговая установка на Ubuntu / WSL 2
 
-## Состав проекта
+Следующие шаги выполняются в терминале Ubuntu (WSL 2). Каждая команда оформлена блоком `bash`, чтобы её можно было копировать целиком.
 
-```
-/finanses
-├─ index.html                — страница входа
-├─ app/                      — защищённая часть интерфейса
-│  ├─ dashboard.html         — кабинет пользователя
-│  ├─ admin.html             — панель закупок/админа
-│  ├─ js/, css/, img/        — фронтенд-скрипты и стили
-├─ api/                      — PHP API-эндпоинты, bootstrap и middleware
-│  └─ materials.php          — каталог материалов с импортом/экспортом
-├─ uploads/                  — вложения к заявкам (создаётся автоматически)
-├─ pdf/                      — кеш PDF (защищён в .htaccess)
-├─ vendor/                   — внешние библиотеки (TCPDF, PHPSpreadsheet)
-├─ .env.example              — шаблон переменных окружения
-├─ .htaccess                 — правила для Apache
-├─ composer.json             — зависимости
-├─ schema.sql                — схема БД MySQL
-├─ seed_users.sql            — пустой шаблон импорта пользователей (опционально)
-└─ tools/hash_passwords.php  — CLI для пересчёта временных паролей в bcrypt
+### 1. Обновите систему
+
+```bash
+sudo apt update
+sudo apt upgrade -y
 ```
 
-## Получение исходников
+### 2. Установите и запустите Apache
 
-- **Git-клон (рекомендуется):**
-  ```bash
-  git clone https://github.com/Apex0412/Budget.git
-  cd Budget
-  ```
-- **ZIP-архив:** скачайте последнюю версию с GitHub: <https://github.com/Apex0412/Budget/archive/refs/heads/work.zip> и распакуйте содержимое в нужную директорию (например, `/var/www/finanses` или `C:\xampp\htdocs\finanses`).
-- После загрузки убедитесь, что структура каталогов сохранилась (`finanses/index.html`, `finanses/api/*.php`, `finanses/app/...`).
-- **Скачать ZIP через консоль (Linux/WSL):**
-  ```bash
-  cd /tmp
-  wget https://github.com/Apex0412/Budget/archive/refs/heads/work.zip -O budget.zip
-  unzip budget.zip
-  # В распакованной папке лежит каталог Budget-work/finanses — перенесите его в нужное место
-  sudo mkdir -p /var/www/finanses
-  sudo cp -r Budget-work/finanses/* /var/www/finanses/
-  sudo chown -R $USER:www-data /var/www/finanses
-  ```
-- **Скачать ZIP через PowerShell (Windows):**
-  ```powershell
-  cd $env:TEMP
-  Invoke-WebRequest -Uri "https://github.com/Apex0412/Budget/archive/refs/heads/work.zip" -OutFile "budget.zip"
-  Expand-Archive -Path .\budget.zip -DestinationPath .\BudgetWork -Force
-  # Скопируйте содержимое каталога BudgetWork\Budget-work\finanses в C:\xampp\htdocs\finanses
-  robocopy .\BudgetWork\Budget-work\finanses C:\xampp\htdocs\finanses /E
-  ```
-  После копирования убедитесь, что в `C:\xampp\htdocs\finanses` находятся файлы `index.html`, папка `api`, `app` и т.д.
+```bash
+sudo apt install -y apache2
+sudo systemctl enable --now apache2
+```
 
-## Требования
+> В WSL 2 службы не запускаются автоматически при старте Windows. При каждом новом сеансе запускайте Apache командой `sudo service apache2 start`.
 
-- PHP 8.1 или выше с расширениями: PDO (MySQL), mbstring, json, intl, gd.
-- MySQL 8.0 или совместимый MariaDB 10.6+.
-- Composer для установки PHP-зависимостей (TCPDF, PHPSpreadsheet).
-- Веб-сервер Apache 2.4+ с поддержкой `.htaccess` (для Nginx — адаптировать правила вручную).
+### 3. Установите PHP 8.1 и модули
 
-## Развёртывание на виртуальном/шаред-хостинге
+Ubuntu 22.04 уже содержит PHP 8.1. Установите интерпретатор и популярные расширения:
 
-1. **Подготовка окружения**
-   - Создайте поддомена/папку `/finanses` на домене `serpmbu.ru` (или другом по необходимости).
-   - Убедитесь, что PHP 8.1+ и MySQL 8+ доступны в панели хостинга.
+```bash
+sudo apt install -y \
+  php8.1 php8.1-cli php8.1-common php8.1-mysql php8.1-mbstring \
+  php8.1-xml php8.1-curl php8.1-zip php8.1-gd php8.1-intl php8.1-soap
+```
 
-2. **Загрузка файлов**
-   - Скопируйте содержимое папки `finanses` в корень веб-пространства `/finanses` (через SFTP/FTP или файловый менеджер). Можно использовать `git clone https://github.com/Apex0412/Budget.git` прямо на хостинге, если доступен SSH.
-   - Убедитесь, что папка `pdf/` недоступна напрямую из браузера (это обеспечит `.htaccess`).
+Проверьте версию PHP:
 
-3. **Зависимости**
-   - В файловом менеджере или через SSH запустите `composer install` внутри папки `/finanses`.
-   - Если SSH недоступен, установите TCPDF и PHPSpreadsheet локально и загрузите содержимое `vendor/` вместе с проектом.
+```bash
+php -v
+```
 
-4. **База данных**
-   - Создайте новую БД (например, `finanses`) и пользователя с правами `SELECT/INSERT/UPDATE/DELETE/CREATE/ALTER`.
-   - Импортируйте `schema.sql` через phpMyAdmin/консоль.
+### 4. Установите Composer
 
-5. **Конфигурация**
-   - Скопируйте `.env.example` в `.env`.
-   - Заполните переменные окружения (хост БД, логин/пароль, `APP_BASE_URL`, `PDF_ORG_NAME`, `CSRF_SECRET` и т.д.). Параметры `PDF_DIRECTOR_LINE`, `PDF_SENDER_LINE`, `PDF_SIGNATURE_TITLE`, `PDF_BASIS_TEXT`, а также `PDF_RECIPIENT_TITLE`, `PDF_RECIPIENT_NAME`, `PDF_AUTHOR_TITLE`, `PDF_SIGNATORY_NAME`, `PDF_BODY_INTRO` управляют текстами в PDF-шаблоне.
-   - Убедитесь, что `SESSION_NAME` уникально в рамках домена.
+```bash
+sudo apt install -y composer
+composer -V
+```
 
-6. **Права доступа**
-   - Установите права на запись для папки `pdf/` (например, `chmod 755` или `775`, в зависимости от настроек хостинга).
+Если в репозитории доступна устаревшая версия Composer, воспользуйтесь официальным установщиком:
 
-7. **Проверка**
-   - Перейдите по адресу `https://ваш-домен/finanses/`.
-   - Создайте первую учетную запись администратора через появившуюся форму.
-   - После входа добавьте сотрудников и протестируйте создание заявки, генерацию PDF и экспорт CSV/XLSX.
+```bash
+php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
+php composer-setup.php --install-dir=/usr/local/bin --filename=composer
+rm composer-setup.php
+composer -V
+```
 
-## Развёртывание на локальном ПК (Windows)
+### 5. Подготовьте каталог `/var/www/html/finanses`
 
-1. **Установите стек**
-   - Установите [XAMPP](https://www.apachefriends.org/index.html) или аналогичный пакет, выбрав PHP 8.1+ и MySQL 8+.
-   - Добавьте Composer: скачайте установщик с [getcomposer.org](https://getcomposer.org/) и выполните глобальную установку.
+```bash
+sudo mkdir -p /var/www/html/finanses
+sudo chown -R $USER:www-data /var/www/html/finanses
+```
 
-2. **Копирование файлов**
-   - Расположите папку `finanses` в корне `htdocs` (например, `C:\xampp\htdocs\finanses`). Самый простой способ — выполнить `git clone https://github.com/Apex0412/Budget.git` и перенести подкаталог `finanses`.
+### 6. Скопируйте проект
 
-3. **Composer**
-   - Откройте терминал PowerShell/Command Prompt, перейдите в `C:\xampp\htdocs\finanses` и выполните `composer install`.
+**Вариант с Git:**
 
-4. **Настройка базы**
-   - Запустите Apache и MySQL из панели XAMPP.
-   - Откройте phpMyAdmin: `http://localhost/phpmyadmin`.
-   - Создайте БД `finanses`, выполните импорт `schema.sql`.
+```bash
+cd /var/www/html
+sudo git clone https://github.com/Apex0412/Budget.git
+sudo cp -r Budget/finanses/* finanses/
+sudo rm -rf Budget
+```
 
-5. **.env**
-   - Скопируйте `.env.example` → `.env`, обновите значения:
-     ```env
-     APP_ENV=local
-     APP_BASE_URL=http://localhost/finanses
-     DB_HOST=127.0.0.1
-     DB_NAME=finanses
-     DB_USER=root
-     DB_PASS=   # пусто, если используется дефолтный XAMPP
-     ```
+**Вариант с ZIP-архивом:**
 
-6. **Проверка**
-   - Откройте `http://localhost/finanses/` в браузере, создайте учетную запись администратора и авторизуйтесь.
+```bash
+cd /tmp
+wget https://github.com/Apex0412/Budget/archive/refs/heads/work.zip -O budget.zip
+unzip budget.zip
+sudo cp -r Budget-work/finanses/* /var/www/html/finanses/
+rm -rf budget.zip Budget-work
+```
 
-> 💡 **Совет для XAMPP и распаковки архива**: если вы скопировали в `htdocs` всю папку репозитория (например, `C:\xampp\htdocs\Budget\finanses`), приложение автоматически определит полный путь (`/Budget/finanses`). Дополнительно проверьте, что `APP_BASE_URL` в `.env` совпадает с фактическим URL (например, `http://localhost/Budget/finanses`).
+После копирования убедитесь, что структура каталогов сохранена:
 
-## Развёртывание на Linux/WSL
+```bash
+ls /var/www/html/finanses
+```
 
-1. **Установите зависимости**
-   ```bash
-   sudo apt update
-   sudo apt install apache2 mysql-server php8.1 php8.1-{cli,common,mysql,mbstring,json,intl,gd,xml,curl,zip} composer unzip
-   ```
-   - Для WSL2: убедитесь, что службы Apache и MySQL запущены (`sudo service apache2 start`, `sudo service mysql start`).
+### 7. Установите зависимости проекта
 
-2. **Настройте виртуальный хост**
-   ```bash
-   sudo mkdir -p /var/www/finanses
-   sudo chown -R $USER:www-data /var/www/finanses
-   ```
-   - Скопируйте проект в `/var/www/finanses` (через `git clone` или `rsync`).
-   - Создайте конфиг `/etc/apache2/sites-available/finanses.conf` с привязкой к подкаталогу `/finanses`.
-   - Активируйте сайт и перезапустите Apache:
-     ```bash
-     sudo a2ensite finanses.conf
-     sudo a2enmod rewrite
-     sudo systemctl reload apache2
-     ```
+```bash
+cd /var/www/html/finanses
+composer install --no-dev --prefer-dist
+```
 
-3. **Composer и права**
-   - В каталоге `/var/www/finanses` выполните `composer install`.
-   - Разрешите запись в `pdf/`: `chmod 775 pdf && chgrp www-data pdf`.
+### 8. Настройте права доступа
 
-4. **База данных**
-   ```bash
-   sudo mysql -e "CREATE DATABASE finanses CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
-   sudo mysql -e "CREATE USER 'fin_user'@'localhost' IDENTIFIED BY 'STRONG_PASSWORD';"
-   sudo mysql -e "GRANT ALL PRIVILEGES ON finanses.* TO 'fin_user'@'localhost';"
-   mysql -u fin_user -p finanses < schema.sql
-   ```
+```bash
+sudo chown -R $USER:www-data /var/www/html/finanses
+sudo find /var/www/html/finanses -type f -exec chmod 664 {} \;
+sudo find /var/www/html/finanses -type d -exec chmod 775 {} \;
+```
 
-5. **Переменные окружения**
-   - Создайте `.env` на основе `.env.example`, пропишите `APP_BASE_URL` (например, `http://localhost/finanses`).
+Убедитесь, что папки `pdf/` и `uploads/` доступны для записи веб-сервером:
 
-6. **Проверка**
-   - Перейдите на `http://localhost/finanses/` или на домен, указанный в виртуальном хосте, создайте учетную запись администратора и протестируйте функционал.
+```bash
+sudo chmod 775 /var/www/html/finanses/pdf /var/www/html/finanses/uploads
+```
 
-## Первичная настройка
+### 9. Создайте виртуальный хост Apache
 
-- При первом открытии `index.html` система запускает расширенную проверку окружения: версия PHP, обязательные расширения, доступность каталога `pdf/`, заполненность `.env` и подключение к MySQL. Итоги проверки отображаются в блоке «Проверка окружения».
-- После успешной проверки выберите, где развернута система (виртуальный хостинг, Windows, Linux, WSL, Docker или другое окружение) — эта информация попадёт в аудит и поможет при дальнейшей поддержке.
-- Далее укажите ФИО, логин и пароль будущего администратора. После сохранения вы будете автоматически авторизованы и попадёте в панель управления.
-- Повторно форма не появится — дальнейшая работа ведётся через стандартную форму входа, а пользователи создаются в разделе «Администрирование → Пользователи».
-- Для массового импорта аккаунтов можно подготовить собственный SQL/CSV и загрузить его напрямую в БД (файл `seed_users.sql` оставлен пустым как шаблон).
+```bash
+sudo tee /etc/apache2/sites-available/finanses.conf > /dev/null <<'VHOST'
+<VirtualHost *:80>
+    ServerName localhost
+    DocumentRoot /var/www/html
 
-## Управление пользователями и безопасностью
+    Alias /finanses /var/www/html/finanses
 
-- Все пароли хранятся в bcrypt. Для временных паролей используйте CLI `php tools/hash_passwords.php path/to/import.csv` или сброс из админ-панели.
-- Папка `pdf/` предназначена для кеша PDF-файлов и недоступна напрямую благодаря `.htaccess`. Выдача идёт через `api/files.php` с проверкой прав.
-- В административном интерфейсе доступны операции:
-  - Сброс пароля (генерация временного, установка `must_change_password=1`).
-  - Деактивация пользователя.
-  - Удаление пользователя (заявки автора удаляются каскадно по FK).
-  - Управление категориями и единицами измерения.
-  - Ведение каталога материалов (ручное добавление, скрытие/удаление, импорт/экспорт CSV).
-  - Контроль PDF-документов (вкладка «PDF-документы» с генерацией и скачиванием служебных записок).
+    <Directory /var/www/html>
+        Options Indexes FollowSymLinks
+        AllowOverride All
+        Require all granted
+    </Directory>
 
-## Импорт и каталог материалов
+    <Directory /var/www/html/finanses>
+        Options Indexes FollowSymLinks
+        AllowOverride All
+        Require all granted
+    </Directory>
 
-- Каталог материалов хранится в таблице `materials` и доступен в админ-панели. Для каждой позиции можно указать категорию, единицу измерения и описание.
-- **Импорт CSV** — используйте кнопку «Импорт CSV» на вкладке «Номенклатура материалов». Файл должен содержать заголовок с колонками:
-  - `name` — наименование (обязательно);
-  - `category` — название категории (будет создана автоматически, если отсутствует);
-  - `unit` — единица измерения (также создаётся при необходимости);
-  - `description` — комментарий/назначение;
-  - `is_active` — `1`/`0` для активности записи.
-- **Экспорт CSV** — формирует актуальный перечень материалов с учётом статуса.
-- На пользовательской стороне доступна кнопка «Добавить из справочника»: выбранный материал автоматически подставляет категорию, наименование, единицу и комментарий. При ручном вводе единица измерения подставляется по умолчанию из словаря выбранной категории, но всегда остаётся возможность изменить значения.
+    ErrorLog ${APACHE_LOG_DIR}/finanses-error.log
+    CustomLog ${APACHE_LOG_DIR}/finanses-access.log combined
+</VirtualHost>
+VHOST
 
-## Обновление существующей установки
+sudo a2dissite 000-default.conf
+sudo a2ensite finanses.conf
+sudo a2enmod rewrite
+```
 
-Если вы уже разворачивали предыдущую версию проекта, выполните дополнительные шаги перед заливкой обновлённых файлов:
+> Если хотите оставить сайт `000-default.conf`, пропустите команду `a2dissite` и убедитесь, что конфигурации не конфликтуют.
 
-1. **Расширьте перечень статусов и добавьте новые поля заявок** (MySQL):
-   ```sql
-   ALTER TABLE requests
-     MODIFY status ENUM('draft','submitted','returned','approved','rejected','in_progress','purchased') NOT NULL DEFAULT 'submitted';
-   ALTER TABLE requests
-     ADD COLUMN basis TEXT DEFAULT 'Муниципальное задание и Правила благоустройства' AFTER justification,
-     ADD COLUMN service_objects TEXT NULL AFTER basis,
-     ADD COLUMN period_label VARCHAR(255) NULL AFTER service_objects,
-     ADD COLUMN pdf_generated TINYINT(1) NOT NULL DEFAULT 0 AFTER deadline_date;
-   ALTER TABLE request_items
-     ADD COLUMN purpose VARCHAR(255) NULL AFTER qty,
-     ADD COLUMN features VARCHAR(255) NULL AFTER purpose,
-     ADD COLUMN stock_qty DECIMAL(12,2) NULL AFTER features,
-     ADD COLUMN need_qty DECIMAL(12,2) NULL AFTER stock_qty,
-     ADD COLUMN purchase_qty DECIMAL(12,2) NULL AFTER need_qty,
-     ADD COLUMN distribution JSON NULL AFTER purchase_qty;
-   ```
-2. **Пересоздайте справочники** (опционально, если хотите получить предзаполненный каталог материалов):
-   ```sql
-   SOURCE schema.sql;
-   ```
-   Команды в `schema.sql` используют `ON DUPLICATE KEY UPDATE`, поэтому существующие записи будут обновлены без потери пользовательских данных.
-3. **Обновите `.env`** и добавьте новые переменные PDF-шаблона.
-4. **Очистите кеш PDF** при необходимости (`rm finanses/pdf/*.pdf`), чтобы новые шаблоны сформировались при следующей загрузке.
+### 10. Перезапустите Apache
 
-## Поддержка HTTPS и сессий
+```bash
+sudo systemctl reload apache2
+```
 
-- При работе по HTTPS PHP-сессии автоматически помечаются как `secure` и `httponly`.
-- CSRF-токены запрашиваются через `/api/csrf.php` и должны добавляться в заголовок `X-CSRF` для всех модифицирующих запросов.
+### 11. Настройте переменные окружения и базу данных
 
-## Тестирование
+```bash
+cd /var/www/html/finanses
+cp .env.example .env
+nano .env
+```
 
-- Базовая проверка синтаксиса:
-  ```bash
-  php -l finanses/api/*.php
-  ```
-- Для проверки PDF/экспортов используйте тестовые заявки и убедитесь, что события фиксируются в `audit_log`.
+Укажите параметры подключения к базе данных и URL вида `APP_BASE_URL=http://localhost/finanses`. Затем создайте базу и импортируйте схему:
 
-## Полезные советы
+```bash
+mysql -u root -p -e "CREATE DATABASE finanses DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+mysql -u root -p finanses < schema.sql
+```
 
-- Обновляйте `APP_BASE_URL` при переносе на другой домен/поддомен.
-- При загрузке собственных SQL-дампов убедитесь, что временные пароли немедленно сменены после первого входа.
-- Для загрузки больших CSV/XLSX увеличьте в `php.ini` лимиты `upload_max_filesize` и `post_max_size` (если будете расширять функциональность).
+## Проверка работы
 
-При необходимости адаптируйте конфигурацию под ваш веб-сервер и политику безопасности. Проект готов к использованию сразу после выполнения шагов выше.
+Откройте браузер Windows и перейдите по адресу:
+
+```
+http://localhost/finanses
+```
+
+При первом запуске появится мастер создания учётной записи администратора. После заполнения формы откроется личный кабинет.
+
+## (Опционально) Установка phpMyAdmin
+
+```bash
+sudo apt install -y phpmyadmin
+sudo ln -s /usr/share/phpmyadmin /var/www/html/phpmyadmin
+sudo systemctl reload apache2
+```
+
+Доступ в браузере: `http://localhost/phpmyadmin`.
+
+## Полезные команды
+
+```bash
+# Проверить статус служб
+systemctl status apache2
+systemctl status mysql
+
+# Перезапустить службы
+sudo systemctl restart apache2
+sudo systemctl restart mysql
+
+# Проверить версии
+php -v
+composer -V
+mysql --version
+
+# Управление сайтом
+sudo a2ensite finanses.conf
+sudo a2dissite finanses.conf
+sudo systemctl reload apache2
+
+# Запустить Apache и MySQL в текущей сессии WSL
+sudo service apache2 start
+sudo service mysql start
+```
+
+Готово! Проект Finanses работает в среде Ubuntu (WSL 2) и доступен по адресу `http://localhost/finanses`.
