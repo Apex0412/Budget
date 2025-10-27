@@ -1,0 +1,20 @@
+{
+    "name": "mbu/finanses",
+    "description": "FINANSES procurement request management system",
+    "type": "project",
+    "require": {
+        "php": "^8.1",
+        "vlucas/phpdotenv": "^5.5",
+        "mpdf/mpdf": "^8.2"
+    },
+    "autoload": {
+        "psr-4": {
+            "Finanses\\": "src/"
+        }
+    },
+    "scripts": {
+        "post-autoload-dump": [
+            "@php -r \"file_exists('config/cache') || mkdir('config/cache', 0775, true);\""
+        ]
+    }
+}

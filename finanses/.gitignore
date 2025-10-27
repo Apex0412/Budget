@@ -1,0 +1,9 @@
+/vendor/
+/storage/logs/app.log
+/storage/uploads/*
+/storage/pdf/*
+!.gitignore
+/.env
+/node_modules/
+.DS_Store
+.idea/
