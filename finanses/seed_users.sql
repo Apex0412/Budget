@@ -1,16 +1,3 @@
-INSERT INTO users (fio, position, department, login, password_hash, role, must_change_password) VALUES
-('Кравченко К.И.', 'Начальник отдела закупок', 'Закупки', 'kravchenko', '$2y$12$WUZthbgXwOm2SwgXhyppPewwbFZb2e9SZI6GeeQKqTPlMaAhMnlt.', 'admin', 0),
-('Ганенко А.А.', 'Заместитель директора', 'Закупки', 'ganenko', '$2y$12$WUZthbgXwOm2SwgXhyppPewwbFZb2e9SZI6GeeQKqTPlMaAhMnlt.', 'admin', 0),
-('zakupki', 'Менеджер по закупкам', 'Закупки', 'zakupki', '$2y$12$WUZthbgXwOm2SwgXhyppPewwbFZb2e9SZI6GeeQKqTPlMaAhMnlt.', 'admin', 0),
-('Иванов И.И.', 'Начальник участка №1', 'Участок №1', 'ivanov', '$2y$12$WUZthbgXwOm2SwgXhyppPewwbFZb2e9SZI6GeeQKqTPlMaAhMnlt.', 'user', 1),
-('Петров П.П.', 'Начальник участка №2', 'Участок №2', 'petrov', '$2y$12$WUZthbgXwOm2SwgXhyppPewwbFZb2e9SZI6GeeQKqTPlMaAhMnlt.', 'user', 1),
-('Сидоров С.С.', 'Начальник участка №3', 'Участок №3', 'sidorov', '$2y$12$WUZthbgXwOm2SwgXhyppPewwbFZb2e9SZI6GeeQKqTPlMaAhMnlt.', 'user', 1),
-('Кузнецов А.А.', 'Руководитель проекта', 'Проектный отдел', 'kuznetsov', '$2y$12$WUZthbgXwOm2SwgXhyppPewwbFZb2e9SZI6GeeQKqTPlMaAhMnlt.', 'user', 1),
-('Смирнова Е.В.', 'Начальник склада', 'Склад', 'smirnova', '$2y$12$WUZthbgXwOm2SwgXhyppPewwbFZb2e9SZI6GeeQKqTPlMaAhMnlt.', 'user', 1),
-('Морозов Д.А.', 'Главный инженер', 'Инженерная служба', 'morozov', '$2y$12$WUZthbgXwOm2SwgXhyppPewwbFZb2e9SZI6GeeQKqTPlMaAhMnlt.', 'user', 1),
-('Попова Н.С.', 'Начальник отдела снабжения', 'Снабжение', 'popova', '$2y$12$WUZthbgXwOm2SwgXhyppPewwbFZb2e9SZI6GeeQKqTPlMaAhMnlt.', 'user', 1),
-('Алексеев Р.П.', 'Начальник автоколонны', 'Автобаза', 'alekseev', '$2y$12$WUZthbgXwOm2SwgXhyppPewwbFZb2e9SZI6GeeQKqTPlMaAhMnlt.', 'user', 1),
-('Фёдорова И.А.', 'Начальник отдела благоустройства', 'Благоустройство', 'fedorova', '$2y$12$WUZthbgXwOm2SwgXhyppPewwbFZb2e9SZI6GeeQKqTPlMaAhMnlt.', 'user', 1),
-('Никитин В.Г.', 'Начальник транспортного участка', 'Транспорт', 'nikitin', '$2y$12$WUZthbgXwOm2SwgXhyppPewwbFZb2e9SZI6GeeQKqTPlMaAhMnlt.', 'user', 1),
-('Ершова Т.К.', 'Начальник отдела озеленения', 'Озеленение', 'ershova', '$2y$12$WUZthbgXwOm2SwgXhyppPewwbFZb2e9SZI6GeeQKqTPlMaAhMnlt.', 'user', 1),
-('Гаврилов С.Н.', 'Начальник участка благоустройства', 'Участок благоустройства', 'gavrilov', '$2y$12$WUZthbgXwOm2SwgXhyppPewwbFZb2e9SZI6GeeQKqTPlMaAhMnlt.', 'user', 1);
+-- Шаблон для ручного импорта пользователей (опционально).
+-- По умолчанию база создаётся пустой. Создайте администратора через веб-интерфейс.
+-- При необходимости можно добавить INSERT-запросы в этот файл перед выполнением.

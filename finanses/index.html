@@ -11,21 +11,59 @@
 <body class="min-h-screen bg-slate-100 flex items-center justify-center p-6">
     <div class="max-w-md w-full bg-white shadow-xl rounded-lg p-8 space-y-6">
         <div class="text-center">
-            <h1 class="text-2xl font-bold text-gray-800">Система заявок на закупку</h1>
-            <p class="text-sm text-gray-500 mt-2">Вход в личный кабинет</p>
+            <h1 id="cardTitle" class="text-2xl font-bold text-gray-800">Система заявок на закупку</h1>
+            <p id="cardSubtitle" class="text-sm text-gray-500 mt-2">Вход в личный кабинет</p>
         </div>
-        <form id="loginForm" class="space-y-4">
-            <div>
-                <label for="login" class="block text-sm font-medium text-gray-700">Логин</label>
-                <input id="login" name="login" type="text" required autocomplete="username" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-600 focus:ring-blue-600">
-            </div>
-            <div>
-                <label for="password" class="block text-sm font-medium text-gray-700">Пароль</label>
-                <input id="password" name="password" type="password" required autocomplete="current-password" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-600 focus:ring-blue-600">
-            </div>
-            <button type="submit" class="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-md transition">Войти</button>
-        </form>
-        <div id="loginMessage" class="text-sm text-center"></div>
+        <div id="bootstrapSection" class="space-y-4 hidden">
+            <p class="text-sm text-gray-600">Перед началом работы создайте первую учетную запись администратора. После этого данная форма больше не появится.</p>
+            <form id="bootstrapForm" class="space-y-4">
+                <div>
+                    <label for="bootstrapFio" class="block text-sm font-medium text-gray-700">ФИО</label>
+                    <input id="bootstrapFio" name="fio" type="text" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-600 focus:ring-blue-600">
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="bootstrapPosition" class="block text-sm font-medium text-gray-700">Должность</label>
+                        <input id="bootstrapPosition" name="position" type="text" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-600 focus:ring-blue-600">
+                    </div>
+                    <div>
+                        <label for="bootstrapDepartment" class="block text-sm font-medium text-gray-700">Подразделение</label>
+                        <input id="bootstrapDepartment" name="department" type="text" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-600 focus:ring-blue-600">
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label for="bootstrapLogin" class="block text-sm font-medium text-gray-700">Логин</label>
+                        <input id="bootstrapLogin" name="login" type="text" required autocomplete="username" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-600 focus:ring-blue-600">
+                    </div>
+                    <div>
+                        <label for="bootstrapPassword" class="block text-sm font-medium text-gray-700">Пароль</label>
+                        <input id="bootstrapPassword" name="password" type="password" required autocomplete="new-password" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-600 focus:ring-blue-600">
+                    </div>
+                </div>
+                <div>
+                    <label for="bootstrapPasswordConfirm" class="block text-sm font-medium text-gray-700">Повторите пароль</label>
+                    <input id="bootstrapPasswordConfirm" type="password" required autocomplete="new-password" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-600 focus:ring-blue-600">
+                </div>
+                <button type="submit" class="w-full py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-md transition">Создать администратора</button>
+            </form>
+            <div id="bootstrapMessage" class="text-sm text-center"></div>
+            <p class="text-xs text-gray-400">Совет: сохраните пароль в менеджере паролей. После входа вы сможете добавить других пользователей из админ-панели.</p>
+        </div>
+        <div id="loginSection" class="space-y-4 hidden">
+            <form id="loginForm" class="space-y-4" novalidate>
+                <div>
+                    <label for="login" class="block text-sm font-medium text-gray-700">Логин</label>
+                    <input id="login" name="login" type="text" required autocomplete="username" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-600 focus:ring-blue-600">
+                </div>
+                <div>
+                    <label for="password" class="block text-sm font-medium text-gray-700">Пароль</label>
+                    <input id="password" name="password" type="password" required autocomplete="current-password" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-600 focus:ring-blue-600">
+                </div>
+                <button type="submit" class="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-md transition">Войти</button>
+            </form>
+            <div id="loginMessage" class="text-sm text-center"></div>
+        </div>
     </div>
 
     <script type="module">
@@ -34,6 +72,73 @@
 
         const form = document.getElementById('loginForm');
         const message = document.getElementById('loginMessage');
+        const bootstrapSection = document.getElementById('bootstrapSection');
+        const bootstrapForm = document.getElementById('bootstrapForm');
+        const bootstrapMessage = document.getElementById('bootstrapMessage');
+        const loginSection = document.getElementById('loginSection');
+        const cardTitle = document.getElementById('cardTitle');
+        const cardSubtitle = document.getElementById('cardSubtitle');
+
+        async function detectBootstrap() {
+            try {
+                const status = await apiClient.get('/auth.php?action=bootstrap-status');
+                if (status.ok && status.data.needsBootstrap) {
+                    cardTitle.textContent = 'Первичная настройка';
+                    cardSubtitle.textContent = 'Создайте учетную запись администратора';
+                    bootstrapSection.classList.remove('hidden');
+                    loginSection.classList.add('hidden');
+                } else {
+                    bootstrapSection.classList.add('hidden');
+                    loginSection.classList.remove('hidden');
+                    cardTitle.textContent = 'Система заявок на закупку';
+                    cardSubtitle.textContent = 'Вход в личный кабинет';
+                }
+            } catch (error) {
+                console.warn('Не удалось проверить статус установки', error);
+                bootstrapSection.classList.add('hidden');
+                loginSection.classList.remove('hidden');
+            }
+        }
+
+        detectBootstrap();
+
+        if (bootstrapForm) {
+            bootstrapForm.addEventListener('submit', async (event) => {
+                event.preventDefault();
+                bootstrapMessage.textContent = '';
+
+                const password = bootstrapForm.bootstrapPassword.value;
+                const confirm = document.getElementById('bootstrapPasswordConfirm').value;
+                if (password !== confirm) {
+                    bootstrapMessage.textContent = 'Пароли не совпадают';
+                    bootstrapMessage.className = 'text-sm text-center text-red-600';
+                    return;
+                }
+
+                try {
+                    const csrfToken = await apiClient.getCsrfToken();
+                    const response = await apiClient.post('/auth.php', 'bootstrap-admin', {
+                        fio: bootstrapForm.bootstrapFio.value.trim(),
+                        position: bootstrapForm.bootstrapPosition.value.trim(),
+                        department: bootstrapForm.bootstrapDepartment.value.trim(),
+                        login: bootstrapForm.bootstrapLogin.value.trim(),
+                        password
+                    }, csrfToken);
+
+                    if (response.ok) {
+                        showToast('Администратор создан. Добро пожаловать!', 'success');
+                        window.location.href = 'app/admin.html';
+                    } else {
+                        bootstrapMessage.textContent = response.error || 'Не удалось создать администратора';
+                        bootstrapMessage.className = 'text-sm text-center text-red-600';
+                    }
+                } catch (error) {
+                    console.error(error);
+                    bootstrapMessage.textContent = 'Ошибка сети. Попробуйте позже.';
+                    bootstrapMessage.className = 'text-sm text-center text-red-600';
+                }
+            });
+        }
 
         form.addEventListener('submit', async (event) => {
             event.preventDefault();
