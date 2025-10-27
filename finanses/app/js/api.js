@@ -1,9 +1,17 @@
 function detectBasePath() {
-    const segments = window.location.pathname.split('/').filter(Boolean);
-    if (!segments.length) {
+    const url = new URL('.', window.location.href);
+    const pathname = url.pathname.replace(/\/+$/, '');
+    if (pathname === '' || pathname === '/') {
         return '';
     }
-    return '/' + segments[0];
+
+    const segments = pathname.split('/').filter(Boolean);
+    const finansesIndex = segments.lastIndexOf('finanses');
+    if (finansesIndex !== -1) {
+        return '/' + segments.slice(0, finansesIndex + 1).join('/');
+    }
+
+    return '/' + segments.join('/');
 }
 
 const API_BASE = `${detectBasePath()}/api`;

@@ -23,7 +23,17 @@ function load_env(string $path): void
 
 function env(string $key, $default = null)
 {
-    return $_ENV[$key] ?? getenv($key) ?? $default;
+    if (array_key_exists($key, $_ENV)) {
+        $value = $_ENV[$key];
+    } else {
+        $value = getenv($key);
+    }
+
+    if ($value === false || $value === null || $value === '') {
+        return $default;
+    }
+
+    return $value;
 }
 
 function json_input(): array
