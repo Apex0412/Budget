@@ -46,12 +46,13 @@ function ensure_method(string $method): void
 function log_action(PDO $pdo, string $action, ?string $entity = null, ?int $entityId = null, array $meta = []): void
 {
     $user = current_user();
-    $stmt = $pdo->prepare('INSERT INTO audit_log (user_id, action, entity, entity_id, meta) VALUES (:user_id, :action, :entity, :entity_id, :meta)');
+    $stmt = $pdo->prepare('INSERT INTO audit_log (user_id, action, entity, entity_id, meta, ip) VALUES (:user_id, :action, :entity, :entity_id, :meta, :ip)');
     $stmt->execute([
         ':user_id' => $user['id'] ?? null,
         ':action' => $action,
         ':entity' => $entity,
         ':entity_id' => $entityId,
-        ':meta' => $meta ? json_encode($meta, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : null
+        ':meta' => $meta ? json_encode($meta, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) : null,
+        ':ip' => client_ip()
     ]);
 }

@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Панель закупок — Система заявок</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script type="module" src="./js/admin.js"></script>
+    <script src="./js/vendor/chart.umd.js" defer></script>
+    <script type="module" src="./js/admin.js" defer></script>
 </head>
 <body class="min-h-screen bg-gradient-to-br from-slate-100 via-white to-slate-200" data-role="admin">
     <div id="toast-container" class="fixed inset-x-0 top-4 flex flex-col items-center space-y-3 z-50"></div>
@@ -14,7 +15,7 @@
             <div>
                 <p class="uppercase tracking-[0.3em] text-xs text-emerald-500 font-semibold">Система заявок</p>
                 <h1 class="text-2xl font-semibold text-slate-800">Панель управления закупками</h1>
-                <p class="text-sm text-slate-500">Контролируйте статусы заявок, обновляйте справочники и управляйте доступом</p>
+                <p class="text-sm text-slate-500">Контролируйте статусы заявок, управляйте пользователями и анализируйте отчёты</p>
             </div>
             <div class="flex items-center space-x-4">
                 <div class="text-right">
@@ -26,12 +27,19 @@
         </div>
     </header>
 
-    <main class="max-w-7xl mx-auto px-6 py-8 space-y-12">
-        <section class="bg-white/90 shadow-xl shadow-slate-200 rounded-2xl p-8 space-y-6">
+    <main class="max-w-7xl mx-auto px-6 py-8 space-y-8">
+        <nav class="bg-white/90 rounded-2xl shadow flex flex-wrap items-center gap-3 px-6 py-4 text-sm font-medium text-slate-500">
+            <button data-tab="requests" class="tab-btn px-4 py-2 rounded-xl bg-emerald-100 text-emerald-700 shadow-inner">Заявки</button>
+            <button data-tab="users" class="tab-btn px-4 py-2 rounded-xl hover:bg-slate-100">Пользователи</button>
+            <button data-tab="reports" class="tab-btn px-4 py-2 rounded-xl hover:bg-slate-100">Отчёты</button>
+            <button data-tab="audit" class="tab-btn px-4 py-2 rounded-xl hover:bg-slate-100">Журнал действий</button>
+        </nav>
+
+        <section data-tab-content="requests" class="bg-white/90 shadow-xl shadow-slate-200 rounded-2xl p-8 space-y-8">
             <div class="flex flex-wrap gap-6 items-end justify-between">
                 <div class="space-y-1">
                     <h2 class="text-xl font-semibold text-slate-800">Реестр заявок</h2>
-                    <p class="text-sm text-slate-500">Используйте расширенные фильтры и управляйте статусами в одно касание</p>
+                    <p class="text-sm text-slate-500">Используйте фильтры, чтобы быстро найти заявки и управлять статусами</p>
                 </div>
                 <div class="flex flex-wrap gap-3 text-sm">
                     <label class="flex flex-col text-slate-500">
@@ -44,16 +52,20 @@
                     </label>
                     <label class="flex flex-col text-slate-500">
                         <span class="text-xs uppercase tracking-wide">ФИО</span>
-                        <input type="text" id="adminFilterFio" placeholder="Например, Иванов" class="mt-1 rounded-lg border-slate-200 focus:border-emerald-500 focus:ring-emerald-500">
+                        <input type="text" id="adminFilterFio" placeholder="Иванов" class="mt-1 rounded-lg border-slate-200 focus:border-emerald-500 focus:ring-emerald-500">
                     </label>
                     <label class="flex flex-col text-slate-500">
                         <span class="text-xs uppercase tracking-wide">Подразделение</span>
-                        <input type="text" id="adminFilterDept" placeholder="Например, ПТО" class="mt-1 rounded-lg border-slate-200 focus:border-emerald-500 focus:ring-emerald-500">
+                        <input type="text" id="adminFilterDept" placeholder="ПТО" class="mt-1 rounded-lg border-slate-200 focus:border-emerald-500 focus:ring-emerald-500">
+                    </label>
+                    <label class="flex flex-col text-slate-500">
+                        <span class="text-xs uppercase tracking-wide">Категория</span>
+                        <input type="text" id="adminFilterCategory" placeholder="Материалы" class="mt-1 rounded-lg border-slate-200 focus:border-emerald-500 focus:ring-emerald-500">
                     </label>
                     <label class="flex flex-col text-slate-500">
                         <span class="text-xs uppercase tracking-wide">Статус</span>
                         <select id="adminFilterStatus" class="mt-1 rounded-lg border-slate-200 focus:border-emerald-500 focus:ring-emerald-500">
-                            <option value="">Все статусы</option>
+                            <option value="">Все</option>
                             <option value="draft">Черновик</option>
                             <option value="submitted">Отправлена</option>
                             <option value="returned">На доработке</option>
@@ -64,8 +76,13 @@
                         </select>
                     </label>
                     <label class="flex flex-col text-slate-500">
-                        <span class="text-xs uppercase tracking-wide">Категория</span>
-                        <input type="text" id="adminFilterCategory" placeholder="Например, Материалы" class="mt-1 rounded-lg border-slate-200 focus:border-emerald-500 focus:ring-emerald-500">
+                        <span class="text-xs uppercase tracking-wide">Приоритет</span>
+                        <select id="adminFilterPriority" class="mt-1 rounded-lg border-slate-200 focus:border-emerald-500 focus:ring-emerald-500">
+                            <option value="">Все</option>
+                            <option value="normal">Обычный</option>
+                            <option value="urgent">Срочный</option>
+                            <option value="critical">Критический</option>
+                        </select>
                     </label>
                     <button id="adminApplyFilters" class="self-end px-4 py-2 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 shadow">Применить</button>
                 </div>
@@ -76,11 +93,12 @@
                         <tr>
                             <th class="px-4 py-3 text-left text-[11px] font-semibold tracking-wider text-slate-500 uppercase">№</th>
                             <th class="px-4 py-3 text-left text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Дата</th>
-                            <th class="px-4 py-3 text-left text-[11px] font-semibold tracking-wider text-slate-500 uppercase">ФИО</th>
-                            <th class="px-4 py-3 text-left text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Должность</th>
+                            <th class="px-4 py-3 text-left text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Автор</th>
                             <th class="px-4 py-3 text-left text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Подразделение</th>
-                            <th class="px-4 py-3 text-left text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Позиций</th>
+                            <th class="px-4 py-3 text-left text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Приоритет</th>
                             <th class="px-4 py-3 text-left text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Статус</th>
+                            <th class="px-4 py-3 text-left text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Позиций</th>
+                            <th class="px-4 py-3 text-left text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Файлов</th>
                             <th class="px-4 py-3 text-left text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Обоснование</th>
                             <th class="px-4 py-3 text-right text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Действия</th>
                         </tr>
@@ -99,21 +117,85 @@
                 <button id="exportCsvBtn" class="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 shadow">Экспорт CSV</button>
                 <button id="exportXlsxBtn" class="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 shadow">Экспорт XLSX</button>
             </div>
-        </section>
 
-        <section class="bg-white/90 shadow-xl shadow-slate-200 rounded-2xl p-8 space-y-6">
-            <div class="flex items-center justify-between">
-                <h2 class="text-xl font-semibold text-slate-800">Сводка</h2>
-                <button id="refreshSummaryBtn" class="px-4 py-2 bg-slate-100 border border-slate-200 rounded-lg text-sm hover:bg-slate-200">Обновить</button>
+            <div class="border-t border-slate-200 pt-6 space-y-6">
+                <h3 class="text-lg font-semibold text-slate-800">Справочники и номенклатура</h3>
+                <div class="grid gap-6 md:grid-cols-2">
+                    <div class="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <h4 class="font-semibold text-slate-600">Категории</h4>
+                            <button id="addCategoryBtn" class="px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg hover:bg-slate-200 text-sm">Добавить</button>
+                        </div>
+                        <ul id="categoriesList" class="space-y-2 text-sm text-slate-600"></ul>
+                    </div>
+                    <div class="bg-slate-50 rounded-xl p-4 border border-slate-200 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <h4 class="font-semibold text-slate-600">Единицы измерения</h4>
+                            <button id="addUnitBtn" class="px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg hover:bg-slate-200 text-sm">Добавить</button>
+                        </div>
+                        <ul id="unitsList" class="space-y-2 text-sm text-slate-600"></ul>
+                    </div>
+                </div>
+                <div class="space-y-4">
+                    <div class="flex flex-wrap items-start justify-between gap-4">
+                        <div>
+                            <h4 class="font-semibold text-slate-600">Каталог материалов</h4>
+                            <p class="text-sm text-slate-500">Загружайте CSV, редактируйте вручную и управляйте статусом позиций</p>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-3">
+                            <form id="materialImportForm" class="flex items-center gap-2" enctype="multipart/form-data">
+                                <input type="file" name="file" accept=".csv" class="text-sm text-slate-600" required>
+                                <button type="submit" class="px-3 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200">Импорт CSV</button>
+                            </form>
+                            <button id="materialsExportBtn" class="px-3 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 shadow">Экспорт CSV</button>
+                        </div>
+                    </div>
+                    <form id="materialForm" class="grid gap-4 md:grid-cols-5 items-end bg-slate-50 border border-slate-200 rounded-xl p-4">
+                        <div class="md:col-span-2">
+                            <label for="materialName" class="block text-sm font-medium text-slate-600">Наименование <span class="text-red-500">*</span></label>
+                            <input type="text" id="materialName" name="materialName" required class="mt-1 w-full rounded-lg border-slate-200 focus:border-blue-600 focus:ring-blue-600" placeholder="Перчатки утеплённые">
+                        </div>
+                        <div>
+                            <label for="materialCategory" class="block text-sm font-medium text-slate-600">Категория</label>
+                            <select id="materialCategory" name="materialCategory" class="mt-1 w-full rounded-lg border-slate-200 focus:border-blue-600 focus:ring-blue-600"></select>
+                        </div>
+                        <div>
+                            <label for="materialUnit" class="block text-sm font-medium text-slate-600">Ед. изм.</label>
+                            <select id="materialUnit" name="materialUnit" class="mt-1 w-full rounded-lg border-slate-200 focus:border-blue-600 focus:ring-blue-600"></select>
+                        </div>
+                        <div>
+                            <label for="materialDescription" class="block text-sm font-medium text-slate-600">Комментарий</label>
+                            <input type="text" id="materialDescription" name="materialDescription" class="mt-1 w-full rounded-lg border-slate-200 focus:border-blue-600 focus:ring-blue-600" placeholder="Опционально">
+                        </div>
+                        <div>
+                            <button type="submit" class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow">Добавить</button>
+                        </div>
+                    </form>
+                    <p class="text-xs text-slate-500">CSV: столбцы <code>name</code>, <code>category</code>, <code>unit</code>, <code>description</code>, <code>is_active</code>.</p>
+                    <div class="overflow-x-auto rounded-xl border border-slate-200">
+                        <table class="min-w-full divide-y divide-slate-200" id="materialsTable">
+                            <thead class="bg-slate-50">
+                                <tr>
+                                    <th class="px-4 py-3 text-left text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Наименование</th>
+                                    <th class="px-4 py-3 text-left text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Категория</th>
+                                    <th class="px-4 py-3 text-left text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Ед. изм.</th>
+                                    <th class="px-4 py-3 text-left text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Статус</th>
+                                    <th class="px-4 py-3 text-left text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Комментарий</th>
+                                    <th class="px-4 py-3 text-right text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-100 bg-white" id="materialsBody"></tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
-            <div id="summaryContainer" class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-slate-600"></div>
         </section>
 
-        <section class="bg-white/90 shadow-xl shadow-slate-200 rounded-2xl p-8 space-y-6">
+        <section data-tab-content="users" class="hidden bg-white/90 shadow-xl shadow-slate-200 rounded-2xl p-8 space-y-6">
             <div class="flex items-center justify-between">
                 <div>
                     <h2 class="text-xl font-semibold text-slate-800">Пользователи</h2>
-                    <p class="text-sm text-slate-500">Создавайте, деактивируйте и сбрасывайте пароли</p>
+                    <p class="text-sm text-slate-500">Создавайте администраторов и сотрудников, управляйте доступом</p>
                 </div>
                 <button id="createUserBtn" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow">Новый пользователь</button>
             </div>
@@ -133,84 +215,41 @@
             </div>
         </section>
 
-        <section class="bg-white/90 shadow-xl shadow-slate-200 rounded-2xl p-8 space-y-6">
+        <section data-tab-content="reports" class="hidden bg-white/90 shadow-xl shadow-slate-200 rounded-2xl p-8 space-y-6">
             <div class="flex items-center justify-between">
-                <div>
-                    <h2 class="text-xl font-semibold text-slate-800">Справочники</h2>
-                    <p class="text-sm text-slate-500">Категории и единицы измерения поддерживаются в актуальном виде</p>
-                </div>
-                <div class="space-x-3">
-                    <button id="addCategoryBtn" class="px-4 py-2 bg-slate-100 border border-slate-200 rounded-lg hover:bg-slate-200">Добавить категорию</button>
-                    <button id="addUnitBtn" class="px-4 py-2 bg-slate-100 border border-slate-200 rounded-lg hover:bg-slate-200">Добавить единицу</button>
-                </div>
+                <h2 class="text-xl font-semibold text-slate-800">Отчёты и аналитика</h2>
+                <button id="refreshSummaryBtn" class="px-4 py-2 bg-slate-100 border border-slate-200 rounded-lg text-sm hover:bg-slate-200">Обновить</button>
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div class="bg-slate-50 rounded-xl p-4 border border-slate-200">
-                    <h3 class="font-semibold text-slate-600 mb-2">Категории</h3>
-                    <ul id="categoriesList" class="space-y-2 text-sm text-slate-600"></ul>
+            <div id="summaryContainer" class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-slate-600"></div>
+            <div class="grid gap-6 md:grid-cols-2">
+                <div class="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                    <h3 class="text-sm font-semibold text-slate-600 mb-2">Статусы заявок</h3>
+                    <canvas id="chartStatus" height="280"></canvas>
                 </div>
-                <div class="bg-slate-50 rounded-xl p-4 border border-slate-200">
-                    <h3 class="font-semibold text-slate-600 mb-2">Единицы измерения</h3>
-                    <ul id="unitsList" class="space-y-2 text-sm text-slate-600"></ul>
+                <div class="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                    <h3 class="text-sm font-semibold text-slate-600 mb-2">Приоритеты</h3>
+                    <canvas id="chartPriority" height="280"></canvas>
                 </div>
-            </div>
-        </section>
-
-        <section class="bg-white/90 shadow-xl shadow-slate-200 rounded-2xl p-8 space-y-6">
-            <div class="flex flex-wrap items-start justify-between gap-6">
-                <div>
-                    <h2 class="text-xl font-semibold text-slate-800">Номенклатура материалов</h2>
-                    <p class="text-sm text-slate-500">Добавляйте позиции вручную или импортируйте из CSV-файла</p>
+                <div class="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                    <h3 class="text-sm font-semibold text-slate-600 mb-2">Популярные категории</h3>
+                    <canvas id="chartCategory" height="280"></canvas>
                 </div>
-                <div class="flex flex-wrap items-center gap-3">
-                    <form id="materialImportForm" class="flex items-center gap-2" enctype="multipart/form-data">
-                        <input type="file" name="file" accept=".csv" class="text-sm text-slate-600" required>
-                        <button type="submit" class="px-3 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200">Импорт CSV</button>
-                    </form>
-                    <button id="materialsExportBtn" class="px-3 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 shadow">Экспорт CSV</button>
+                <div class="bg-slate-50 border border-slate-200 rounded-xl p-4">
+                    <h3 class="text-sm font-semibold text-slate-600 mb-2">Заявки по подразделениям</h3>
+                    <canvas id="chartDepartment" height="280"></canvas>
                 </div>
-            </div>
-            <form id="materialForm" class="grid gap-4 md:grid-cols-5 items-end bg-slate-50 border border-slate-200 rounded-xl p-4">
-                <div class="md:col-span-2">
-                    <label for="materialName" class="block text-sm font-medium text-slate-600">Наименование <span class="text-red-500">*</span></label>
-                    <input type="text" id="materialName" name="materialName" required class="mt-1 w-full rounded-lg border-slate-200 focus:border-blue-600 focus:ring-blue-600" placeholder="Например, Перчатки утеплённые">
+                <div class="md:col-span-2 bg-slate-50 border border-slate-200 rounded-xl p-4">
+                    <h3 class="text-sm font-semibold text-slate-600 mb-2">Динамика по месяцам</h3>
+                    <canvas id="chartMonthly" height="280"></canvas>
                 </div>
-                <div>
-                    <label for="materialCategory" class="block text-sm font-medium text-slate-600">Категория</label>
-                    <select id="materialCategory" name="materialCategory" class="mt-1 w-full rounded-lg border-slate-200 focus:border-blue-600 focus:ring-blue-600"></select>
-                </div>
-                <div>
-                    <label for="materialUnit" class="block text-sm font-medium text-slate-600">Ед. изм.</label>
-                    <select id="materialUnit" name="materialUnit" class="mt-1 w-full rounded-lg border-slate-200 focus:border-blue-600 focus:ring-blue-600"></select>
-                </div>
-                <div class="md:col-span-1">
-                    <label for="materialDescription" class="block text-sm font-medium text-slate-600">Комментарий</label>
-                    <input type="text" id="materialDescription" name="materialDescription" class="mt-1 w-full rounded-lg border-slate-200 focus:border-blue-600 focus:ring-blue-600" placeholder="Опционально">
-                </div>
-                <div class="md:col-span-1">
-                    <button type="submit" class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow">Добавить материал</button>
-                </div>
-            </form>
-            <p class="text-xs text-slate-500">Файл CSV должен содержать столбцы: <code>name</code>, <code>category</code>, <code>unit</code>, <code>description</code>, <code>is_active</code>.</p>
-            <div class="overflow-x-auto rounded-xl border border-slate-200">
-                <table class="min-w-full divide-y divide-slate-200" id="materialsTable">
-                    <thead class="bg-slate-50">
-                        <tr>
-                            <th class="px-4 py-3 text-left text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Наименование</th>
-                            <th class="px-4 py-3 text-left text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Категория</th>
-                            <th class="px-4 py-3 text-left text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Ед. изм.</th>
-                            <th class="px-4 py-3 text-left text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Статус</th>
-                            <th class="px-4 py-3 text-left text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Комментарий</th>
-                            <th class="px-4 py-3 text-right text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Действия</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-100 bg-white" id="materialsBody"></tbody>
-                </table>
             </div>
         </section>
 
-        <section class="bg-white/90 shadow-xl shadow-slate-200 rounded-2xl p-8 space-y-6">
-            <h2 class="text-xl font-semibold text-slate-800">Аудит-лог</h2>
+        <section data-tab-content="audit" class="hidden bg-white/90 shadow-xl shadow-slate-200 rounded-2xl p-8 space-y-6">
+            <div class="flex items-center justify-between">
+                <h2 class="text-xl font-semibold text-slate-800">Журнал действий</h2>
+                <p class="text-sm text-slate-500">Последние операции пользователей и системы</p>
+            </div>
             <div class="overflow-x-auto rounded-xl border border-slate-200">
                 <table class="min-w-full divide-y divide-slate-200" id="auditTable">
                     <thead class="bg-slate-50">
@@ -220,6 +259,7 @@
                             <th class="px-4 py-3 text-left text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Действие</th>
                             <th class="px-4 py-3 text-left text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Сущность</th>
                             <th class="px-4 py-3 text-left text-[11px] font-semibold tracking-wider text-slate-500 uppercase">Детали</th>
+                            <th class="px-4 py-3 text-left text-[11px] font-semibold tracking-wider text-slate-500 uppercase">IP</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100 bg-white" id="auditBody"></tbody>
@@ -246,10 +286,5 @@
             </form>
         </div>
     </div>
-
-    <script type="module">
-        import { initAdminPanel } from './js/admin.js';
-        initAdminPanel();
-    </script>
 </body>
 </html>

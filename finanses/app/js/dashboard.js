@@ -1,13 +1,20 @@
 import { apiClient } from './api.js';
-import { showToast, renderStatusBadge, renderJustificationPreview } from './ui.js';
+import { showToast, renderStatusBadge, renderJustificationPreview, renderPriorityBadge } from './ui.js';
 import { renderTableRows } from './table.js';
 
-let currentRequestId = null;
+const state = {
+    currentRequestId: null,
+    currentStatus: 'draft',
+    attachments: [],
+    pendingFiles: []
+};
+
 let currentPage = 1;
 let totalPages = 1;
 let filters = {};
 let materialLibrary = [];
 let categoryDefaults = new Map();
+let latestTemplate = null;
 
 const statuses = {
     draft: 'Черновик',
@@ -35,8 +42,13 @@ function serializeItems(tableBody) {
 }
 
 function resetForm() {
-    currentRequestId = null;
+    state.currentRequestId = null;
+    state.currentStatus = 'draft';
+    state.attachments = [];
+    state.pendingFiles = [];
     document.getElementById('requestForm').reset();
+    document.getElementById('attachmentInput').value = '';
+    renderAttachmentList();
     const body = document.getElementById('itemsBody');
     body.innerHTML = '';
     addItemRow();
@@ -198,71 +210,193 @@ async function loadMaterialsDictionary() {
     if (!response.ok) {
         showToast(response.error || 'Не удалось загрузить справочник материалов', 'warning');
         materialLibrary = [];
-    } else {
-        materialLibrary = response.data;
+        return;
     }
-    categoryDefaults = new Map();
+    materialLibrary = response.data;
+    categoryDefaults.clear();
     materialLibrary.forEach((material) => {
         if (material.category_name && material.unit_name) {
-            const key = material.category_name.toLowerCase();
-            if (!categoryDefaults.has(key)) {
-                categoryDefaults.set(key, material.unit_name);
-            }
+            categoryDefaults.set(material.category_name.toLowerCase(), material.unit_name);
         }
     });
     populateMaterialSources();
 }
 
-function addMaterialFromCatalog() {
-    const select = document.getElementById('materialQuickSelect');
-    if (!select) return;
-    const id = Number(select.value);
-    if (!id) {
-        showToast('Выберите материал из списка', 'warning');
+function collectFormData() {
+    const justification = document.getElementById('justification').value.trim();
+    if (!justification) {
+        throw new Error('Обоснование обязательно');
+    }
+    const priority = document.getElementById('priority').value;
+    const deadline = document.getElementById('deadline').value || null;
+    const items = serializeItems(document.getElementById('itemsBody'));
+    if (!items.length) {
+        throw new Error('Добавьте хотя бы одну позицию');
+    }
+    return { justification, priority, deadline_date: deadline, items };
+}
+
+async function fetchRequest(id) {
+    const response = await apiClient.get(`/requests.php?action=one&id=${id}`);
+    if (!response.ok) {
+        showToast(response.error || 'Не удалось загрузить заявку', 'error');
+        return null;
+    }
+    return response.data;
+}
+
+async function loadAttachments(requestId) {
+    if (!requestId) {
+        state.attachments = [];
+        renderAttachmentList();
         return;
     }
-    const material = materialLibrary.find((item) => item.id === id);
-    if (!material) {
-        showToast('Материал не найден', 'error');
+    const data = await fetchRequest(requestId);
+    if (data) {
+        state.attachments = data.attachments || [];
+        renderAttachmentList();
+    }
+}
+
+async function saveRequest(status, silent = false, skipAttachments = false) {
+    let payload;
+    try {
+        payload = collectFormData();
+    } catch (error) {
+        if (!silent) {
+            showToast(error.message, 'error');
+        }
+        throw error;
+    }
+    payload.status = status;
+    payload.priority = payload.priority || 'normal';
+
+    const csrfToken = await apiClient.getCsrfToken();
+    let response;
+    if (state.currentRequestId) {
+        response = await apiClient.post('/requests.php', 'update', { id: state.currentRequestId, ...payload }, csrfToken);
+    } else {
+        response = await apiClient.post('/requests.php', 'create', payload, csrfToken);
+    }
+
+    if (!response.ok) {
+        if (!silent) {
+            showToast(response.error || 'Не удалось сохранить заявку', 'error');
+        }
+        throw new Error(response.error || 'Ошибка сохранения');
+    }
+
+    state.currentRequestId = response.data.id;
+    state.currentStatus = status;
+    document.getElementById('downloadPdfBtn').disabled = false;
+    if (!silent) {
+        showToast(status === 'draft' ? 'Черновик сохранён' : 'Заявка отправлена', 'success');
+    }
+    if (!skipAttachments) {
+        await uploadPendingAttachments();
+    }
+    await loadAttachments(state.currentRequestId);
+    await loadRequests(currentPage);
+    return state.currentRequestId;
+}
+
+async function uploadPendingAttachments() {
+    if (!state.pendingFiles.length || !state.currentRequestId) {
         return;
     }
-    const qty = 1;
-    addItemRow({
-        category: material.category_name || '',
-        item_name: material.name,
-        unit: material.unit_name || '',
-        qty,
-        note: material.description || ''
+    const csrfToken = await apiClient.getCsrfToken();
+    for (const file of state.pendingFiles) {
+        const formData = new FormData();
+        formData.append('request_id', state.currentRequestId);
+        formData.append('file', file);
+        const response = await apiClient.upload('/requests.php', 'upload_attachment', formData, csrfToken);
+        if (response.ok) {
+            state.attachments = response.data;
+        } else {
+            showToast(response.error || `Ошибка загрузки файла ${file.name}`, 'error');
+        }
+    }
+    state.pendingFiles = [];
+    document.getElementById('attachmentInput').value = '';
+    renderAttachmentList();
+}
+
+async function deleteAttachment(id) {
+    const csrfToken = await apiClient.getCsrfToken();
+    const response = await apiClient.post('/requests.php', 'delete_attachment', { id }, csrfToken);
+    if (response.ok) {
+        state.attachments = response.data;
+        showToast('Файл удалён', 'success');
+        renderAttachmentList();
+    } else {
+        showToast(response.error || 'Не удалось удалить файл', 'error');
+    }
+}
+
+function renderAttachmentList() {
+    const list = document.getElementById('attachmentList');
+    list.innerHTML = '';
+    state.pendingFiles.forEach((file, index) => {
+        const li = document.createElement('li');
+        li.className = 'flex items-center justify-between bg-slate-100 px-3 py-2 rounded';
+        li.innerHTML = `<span>${file.name} <span class="text-xs text-slate-400">(к загрузке)</span></span><button class="text-red-500 text-xs" data-pending-index="${index}">Убрать</button>`;
+        list.appendChild(li);
     });
-    select.value = '';
-    showToast('Материал добавлен в таблицу', 'success');
+    state.attachments.forEach((file) => {
+        const li = document.createElement('li');
+        li.className = 'flex items-center justify-between bg-white px-3 py-2 rounded border border-slate-200';
+        li.innerHTML = `
+            <span>${file.original_name}</span>
+            <div class="flex items-center gap-3 text-xs">
+                <a href="../api/files.php?action=attachment&id=${file.id}" target="_blank" class="text-emerald-600 hover:text-emerald-800">Скачать</a>
+                <button data-attachment-id="${file.id}" class="text-red-500 hover:text-red-700">Удалить</button>
+            </div>`;
+        list.appendChild(li);
+    });
+}
+
+function handlePendingRemoval(event) {
+    const button = event.target.closest('button[data-pending-index]');
+    if (!button) return;
+    const index = Number(button.dataset.pendingIndex);
+    state.pendingFiles.splice(index, 1);
+    renderAttachmentList();
+}
+
+function collectFilters() {
+    return {
+        status: document.getElementById('filterStatus').value,
+        priority: document.getElementById('filterPriority').value,
+        from: document.getElementById('filterFrom').value,
+        to: document.getElementById('filterTo').value
+    };
 }
 
 async function loadRequests(page = 1) {
+    filters = collectFilters();
     currentPage = page;
     const query = new URLSearchParams({ page: currentPage, ...filters });
-    const response = await apiClient.get(`/requests.php?${query.toString()}&action=list`);
+    const response = await apiClient.get(`/requests.php?action=list&${query.toString()}`);
     if (!response.ok) {
         showToast(response.error || 'Не удалось загрузить заявки', 'error');
         return;
     }
-
     const { items, pagination } = response.data;
     totalPages = pagination.total_pages;
-
     const rows = items.map((item) => ({
         id: item.id,
         cells: [
             { html: `<span class="font-medium">${item.id}</span>` },
             { text: new Date(item.created_at).toLocaleString('ru-RU') },
+            { html: renderPriorityBadge(item.priority) },
             { html: renderStatusBadge(item.status) },
             { text: item.items_count.toString() },
             { html: renderJustificationPreview(item.justification) },
             {
                 html: `
-                <div class="flex justify-end space-x-2">
+                <div class="flex justify-end space-x-2 text-sm">
                     <button data-action="pdf" data-id="${item.id}" class="text-emerald-600 hover:text-emerald-800">PDF</button>
-                    ${item.can_edit ? `<button data-action="edit" data-id="${item.id}" class="text-blue-600 hover:text-blue-800">Изменить</button>` : ''}
+                    ${(item.can_edit ? `<button data-action="edit" data-id="${item.id}" class="text-blue-600 hover:text-blue-800">Редактировать</button>` : '')}
                 </div>`
             }
         ]
@@ -272,181 +406,238 @@ async function loadRequests(page = 1) {
     document.getElementById('requestsSummary').textContent = `Страница ${pagination.current_page} из ${pagination.total_pages}, всего ${pagination.total_items}`;
     document.getElementById('prevPageBtn').disabled = pagination.current_page <= 1;
     document.getElementById('nextPageBtn').disabled = pagination.current_page >= pagination.total_pages;
+
+    const statusFilter = document.getElementById('filterStatus');
+    if (statusFilter && statusFilter.options.length === 1) {
+        Object.entries(statuses).forEach(([value, label]) => {
+            const option = document.createElement('option');
+            option.value = value;
+            option.textContent = label;
+            statusFilter.appendChild(option);
+        });
+    }
 }
 
-async function loadRequest(id) {
-    const response = await apiClient.get(`/requests.php?action=one&id=${id}`);
-    if (!response.ok) {
-        showToast(response.error || 'Не удалось загрузить заявку', 'error');
-        return;
-    }
-
-    const { request, items } = response.data;
-    currentRequestId = request.id;
-    document.getElementById('justification').value = request.justification;
-
+async function openRequestForEdit(id) {
+    const data = await fetchRequest(id);
+    if (!data) return;
+    state.currentRequestId = id;
+    state.currentStatus = data.request.status;
+    document.getElementById('justification').value = data.request.justification;
+    document.getElementById('priority').value = data.request.priority;
+    document.getElementById('deadline').value = data.request.deadline_date || '';
     const body = document.getElementById('itemsBody');
     body.innerHTML = '';
-    items.forEach(addItemRow);
-    if (items.length === 0) addItemRow();
-
+    data.items.forEach((item) => addItemRow(item));
+    updateIndices();
+    state.attachments = data.attachments || [];
+    state.pendingFiles = [];
+    renderAttachmentList();
     document.getElementById('downloadPdfBtn').disabled = false;
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    showToast('Заявка открыта для редактирования', 'info');
 }
 
-async function submitRequest(status) {
-    const form = document.getElementById('requestForm');
-    if (!form.reportValidity()) {
-        showToast('Проверьте корректность данных', 'error');
+async function repeatLastRequest() {
+    const response = await apiClient.get('/requests.php?action=latest');
+    if (!response.ok || !response.data) {
+        showToast(response.error || 'Не найдено прошлых заявок для повтора', 'warning');
         return;
     }
+    latestTemplate = response.data;
+    state.currentRequestId = null;
+    state.currentStatus = 'draft';
+    document.getElementById('requestForm').reset();
+    document.getElementById('justification').value = latestTemplate.request.justification;
+    document.getElementById('priority').value = latestTemplate.request.priority;
+    document.getElementById('deadline').value = latestTemplate.request.deadline_date || '';
+    const body = document.getElementById('itemsBody');
+    body.innerHTML = '';
+    latestTemplate.items.forEach((item) => addItemRow(item));
+    updateIndices();
+    state.attachments = [];
+    state.pendingFiles = [];
+    renderAttachmentList();
+    document.getElementById('downloadPdfBtn').disabled = true;
+    showToast('Данные последней заявки подставлены. Проверьте и отправьте.', 'success');
+}
 
-    const justification = form.justification.value.trim();
-    if (!justification) {
-        showToast('Обоснование обязательно', 'error');
+function applyTemplate() {
+    const template = {
+        justification: 'Прошу обеспечить подразделение комплектами спецодежды и инструментом для выполнения плановых работ.',
+        priority: 'urgent',
+        deadline_date: '',
+        items: [
+            { category: 'Спецодежда', item_name: 'Куртка утеплённая зимняя', unit: 'шт.', qty: 20, note: 'Для бригад дорожного участка' },
+            { category: 'Инструмент', item_name: 'Отбойный молоток электрический', unit: 'шт.', qty: 2, note: 'Замена изношенного инструмента' }
+        ]
+    };
+    state.currentRequestId = null;
+    state.currentStatus = 'draft';
+    document.getElementById('justification').value = template.justification;
+    document.getElementById('priority').value = template.priority;
+    document.getElementById('deadline').value = template.deadline_date;
+    const body = document.getElementById('itemsBody');
+    body.innerHTML = '';
+    template.items.forEach((item) => addItemRow(item));
+    updateIndices();
+    state.attachments = [];
+    state.pendingFiles = [];
+    renderAttachmentList();
+    document.getElementById('downloadPdfBtn').disabled = true;
+    showToast('Шаблон заполнен. Добавьте дополнительные позиции при необходимости.', 'info');
+}
+
+function handleAttachmentSelection(event) {
+    const files = Array.from(event.target.files || []);
+    if (!files.length) {
         return;
     }
+    state.pendingFiles.push(...files);
+    renderAttachmentList();
+}
 
-    const items = serializeItems(document.getElementById('itemsBody'));
-    if (items.length === 0) {
-        showToast('Добавьте хотя бы одну позицию', 'error');
+async function handleUploadButton() {
+    if (!state.pendingFiles.length) {
+        showToast('Выберите файлы для загрузки', 'warning');
         return;
     }
-
-    if (items.some((item) => !item.category || !item.item_name || !item.unit || !(item.qty > 0))) {
-        showToast('Проверьте заполнение всех позиций и количество > 0', 'error');
-        return;
-    }
-
-    const payload = { justification, items, status, id: currentRequestId };
-    const csrfToken = await apiClient.getCsrfToken();
-    const action = currentRequestId ? '/update' : '/create';
-    const response = await apiClient.post('/requests.php', action, payload, csrfToken);
-    if (response.ok) {
-        showToast('Заявка сохранена', 'success');
-        currentRequestId = response.data.id;
-        document.getElementById('downloadPdfBtn').disabled = false;
-        await loadRequests(currentPage);
-    } else {
-        showToast(response.error || 'Ошибка сохранения', 'error');
+    try {
+        if (!state.currentRequestId) {
+            await saveRequest('draft', true, true);
+        }
+        await uploadPendingAttachments();
+    } catch (error) {
+        // already handled
     }
 }
 
-async function downloadPdf(id) {
-    const link = document.createElement('a');
-    link.href = `../api/files.php?action=pdf&id=${id}`;
-    link.target = '_blank';
-    link.rel = 'noopener';
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-}
-
-async function handlePasswordChange(event) {
-    event.preventDefault();
-    const form = event.target;
-    const newPassword = form.new_password.value;
-    const confirmPassword = form.confirm_password.value;
-
-    if (newPassword !== confirmPassword) {
-        showToast('Пароли не совпадают', 'error');
-        return;
-    }
-
-    const csrfToken = await apiClient.getCsrfToken();
-    const response = await apiClient.post('/auth.php', 'password/change', { new_password: newPassword }, csrfToken);
-    if (response.ok) {
-        showToast('Пароль успешно изменён', 'success');
-        document.getElementById('passwordChangeSection').classList.add('hidden');
-    } else {
-        showToast(response.error || 'Ошибка смены пароля', 'error');
-    }
-}
-
-export async function initDashboard() {
+function initEventHandlers() {
     document.getElementById('addItemBtn').addEventListener('click', () => addItemRow());
-    document.getElementById('saveDraftBtn').addEventListener('click', () => submitRequest('draft'));
-    document.getElementById('submitRequestBtn').addEventListener('click', () => submitRequest('submitted'));
-    document.getElementById('downloadPdfBtn').addEventListener('click', () => {
-        if (!currentRequestId) return;
-        downloadPdf(currentRequestId);
+    document.getElementById('materialQuickSelect').addEventListener('change', (event) => {
+        const id = Number(event.target.value);
+        if (!id) return;
+        const material = materialLibrary.find((item) => item.id === id);
+        if (!material) return;
+        addItemRow({
+            category: material.category_name || '',
+            item_name: material.name,
+            unit: material.unit_name || '',
+            qty: 1,
+            note: material.description || ''
+        });
+        event.target.value = '';
+    });
+    document.getElementById('addMaterialFromCatalog').addEventListener('click', () => {
+        const select = document.getElementById('materialQuickSelect');
+        const id = Number(select.value);
+        if (!id) {
+            showToast('Выберите материал из списка', 'warning');
+            return;
+        }
+        const material = materialLibrary.find((item) => item.id === id);
+        if (!material) return;
+        addItemRow({
+            category: material.category_name || '',
+            item_name: material.name,
+            unit: material.unit_name || '',
+            qty: 1,
+            note: material.description || ''
+        });
+        select.value = '';
     });
 
-    document.getElementById('passwordChangeForm').addEventListener('submit', handlePasswordChange);
+    document.getElementById('saveDraftBtn').addEventListener('click', () => saveRequest('draft'));
+    document.getElementById('submitRequestBtn').addEventListener('click', () => saveRequest('submitted'));
 
+    document.getElementById('downloadPdfBtn').addEventListener('click', () => {
+        if (!state.currentRequestId) return;
+        window.open(`../api/files.php?action=pdf&id=${state.currentRequestId}`, '_blank');
+    });
+
+    document.getElementById('templateRequestBtn').addEventListener('click', applyTemplate);
+    document.getElementById('repeatLastRequestBtn').addEventListener('click', repeatLastRequest);
+
+    document.getElementById('attachmentInput').addEventListener('change', handleAttachmentSelection);
+    document.getElementById('uploadAttachmentBtn').addEventListener('click', handleUploadButton);
+    document.getElementById('attachmentList').addEventListener('click', (event) => {
+        if (event.target.matches('[data-attachment-id]')) {
+            deleteAttachment(Number(event.target.dataset.attachmentId));
+        }
+        if (event.target.matches('[data-pending-index]')) {
+            handlePendingRemoval(event);
+        }
+    });
+
+    document.getElementById('requestsBody').addEventListener('click', (event) => {
+        const button = event.target.closest('button');
+        if (!button) return;
+        const id = Number(button.dataset.id);
+        if (button.dataset.action === 'pdf') {
+            window.open(`../api/files.php?action=pdf&id=${id}`, '_blank');
+        }
+        if (button.dataset.action === 'edit') {
+            openRequestForEdit(id);
+        }
+    });
+
+    document.getElementById('applyFiltersBtn').addEventListener('click', () => loadRequests(1));
     document.getElementById('prevPageBtn').addEventListener('click', () => {
         if (currentPage > 1) loadRequests(currentPage - 1);
     });
     document.getElementById('nextPageBtn').addEventListener('click', () => {
         if (currentPage < totalPages) loadRequests(currentPage + 1);
     });
+}
 
-    document.getElementById('applyFiltersBtn').addEventListener('click', () => {
-        filters = {
-            status: document.getElementById('filterStatus').value,
-            from: document.getElementById('filterFrom').value,
-            to: document.getElementById('filterTo').value
-        };
-        loadRequests(1);
-    });
-
-    document.getElementById('requestsBody').addEventListener('click', (event) => {
-        const button = event.target.closest('button');
-        if (!button) return;
-        const id = button.dataset.id;
-        const action = button.dataset.action;
-        if (action === 'pdf') {
-            downloadPdf(id);
-        }
-        if (action === 'edit') {
-            loadRequest(id);
-        }
-    });
-
-    const addMaterialFromCatalogBtn = document.getElementById('addMaterialFromCatalog');
-    if (addMaterialFromCatalogBtn) {
-        addMaterialFromCatalogBtn.addEventListener('click', addMaterialFromCatalog);
-    }
-
-    document.getElementById('logoutBtn').addEventListener('click', async () => {
-        const csrfToken = await apiClient.getCsrfToken();
-        const response = await apiClient.post('/auth.php', 'logout', {}, csrfToken);
-        if (response.ok) {
-            window.location.href = '../index.html';
-        }
-    });
-
+async function initUserInfo() {
     const me = await apiClient.get('/auth.php?action=me');
     if (!me.ok) {
         window.location.href = '../index.html';
         return;
     }
-    const user = me.data;
-    document.body.dataset.role = user.role;
-    document.getElementById('userInfo').textContent = `${user.fio} (${user.department || 'подразделение не указано'})`;
-
-    const changePasswordBtn = document.getElementById('changePasswordBtn');
-    if (user.must_change_password || new URLSearchParams(window.location.search).get('change_password') === '1') {
+    document.getElementById('userInfo').textContent = me.data.fio;
+    if (me.data.must_change_password) {
         document.getElementById('passwordChangeSection').classList.remove('hidden');
-        changePasswordBtn.classList.remove('hidden');
-    } else {
-        changePasswordBtn.classList.add('hidden');
+        document.getElementById('changePasswordBtn').classList.remove('hidden');
+        showToast('Необходимо сменить пароль при первом входе', 'warning');
     }
-
-    changePasswordBtn.addEventListener('click', () => {
-        document.getElementById('passwordChangeSection').classList.toggle('hidden');
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+        const csrfToken = await apiClient.getCsrfToken();
+        await apiClient.post('/auth.php', 'logout', {}, csrfToken);
+        window.location.href = '../index.html';
     });
+}
 
-    const statusSelect = document.getElementById('filterStatus');
-    Object.entries(statuses).forEach(([value, label]) => {
-        const option = document.createElement('option');
-        option.value = value;
-        option.textContent = label;
-        statusSelect.appendChild(option);
+async function initPasswordChange() {
+    const btn = document.getElementById('changePasswordBtn');
+    const section = document.getElementById('passwordChangeSection');
+    const form = document.getElementById('passwordChangeForm');
+    btn.addEventListener('click', () => section.classList.toggle('hidden'));
+    form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const formData = new FormData(form);
+        const newPassword = formData.get('new_password');
+        const confirmPassword = formData.get('confirm_password');
+        if (newPassword !== confirmPassword) {
+            showToast('Пароли не совпадают', 'error');
+            return;
+        }
+        const csrfToken = await apiClient.getCsrfToken();
+        const response = await apiClient.post('/auth.php', 'password/change', { new_password: newPassword }, csrfToken);
+        if (response.ok) {
+            showToast('Пароль изменён', 'success');
+            section.classList.add('hidden');
+        } else {
+            showToast(response.error || 'Не удалось сменить пароль', 'error');
+        }
     });
+}
 
+export async function initDashboard() {
+    await initUserInfo();
+    await initPasswordChange();
+    initEventHandlers();
+    resetForm();
     await loadMaterialsDictionary();
-    addItemRow();
-
     await loadRequests();
 }

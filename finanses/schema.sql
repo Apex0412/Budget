@@ -21,6 +21,8 @@ CREATE TABLE IF NOT EXISTS requests (
   updated_at TIMESTAMP NULL,
   status ENUM('draft','submitted','returned','approved','rejected','in_progress','purchased') NOT NULL DEFAULT 'submitted',
   justification TEXT NOT NULL,
+  priority ENUM('normal','urgent','critical') NOT NULL DEFAULT 'normal',
+  deadline_date DATE DEFAULT NULL,
   FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -42,8 +44,21 @@ CREATE TABLE IF NOT EXISTS audit_log (
   entity VARCHAR(64) NULL,
   entity_id BIGINT NULL,
   meta JSON NULL,
+  ip VARCHAR(45) NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   INDEX idx_audit_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS request_files (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  request_id BIGINT NOT NULL,
+  original_name VARCHAR(255) NOT NULL,
+  stored_name VARCHAR(255) NOT NULL,
+  mime_type VARCHAR(128) DEFAULT NULL,
+  size BIGINT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (request_id) REFERENCES requests(id) ON DELETE CASCADE,
+  INDEX idx_request_files_request_id (request_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS categories (

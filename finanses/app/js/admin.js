@@ -1,5 +1,5 @@
 import { apiClient } from './api.js';
-import { showToast, renderStatusBadge, renderJustificationPreview } from './ui.js';
+import { showToast, renderStatusBadge, renderJustificationPreview, renderPriorityBadge } from './ui.js';
 import { renderTableRows } from './table.js';
 
 let adminPage = 1;
@@ -8,14 +8,26 @@ let adminFilters = {};
 let catalogData = { categories: [], units: [] };
 let materialsCache = [];
 let activeStatusRequestId = null;
+let charts = {};
+let statsLoaded = false;
+
+const statuses = {
+    draft: 'Черновик',
+    submitted: 'Отправлена',
+    returned: 'На доработке',
+    approved: 'Согласована',
+    rejected: 'Отклонена',
+    in_progress: 'В работе',
+    purchased: 'Закуплено'
+};
 
 const statusOptions = [
     { value: 'submitted', label: 'Отправлена', description: 'Заявка в очереди на обработку.' },
     { value: 'returned', label: 'На доработке', description: 'Вернуть инициатору для корректировок.' },
-    { value: 'approved', label: 'Согласована', description: 'Подтверждено руководителем закупок.' },
-    { value: 'rejected', label: 'Отклонена', description: 'Закупка не будет выполнена.' },
+    { value: 'approved', label: 'Согласована', description: 'Подтвердить закупку и приступить к выполнению.' },
+    { value: 'rejected', label: 'Отклонена', description: 'Закупка не требуется или невозможна.' },
     { value: 'in_progress', label: 'В работе', description: 'Закупочный отдел ведёт исполнение.' },
-    { value: 'purchased', label: 'Закуплено', description: 'Закупка завершена, товары получены.' }
+    { value: 'purchased', label: 'Закуплено', description: 'Закупка завершена и поставлена.' }
 ];
 
 function collectFilters() {
@@ -25,7 +37,8 @@ function collectFilters() {
         fio: document.getElementById('adminFilterFio').value,
         department: document.getElementById('adminFilterDept').value,
         status: document.getElementById('adminFilterStatus').value,
-        category: document.getElementById('adminFilterCategory').value
+        category: document.getElementById('adminFilterCategory').value,
+        priority: document.getElementById('adminFilterPriority').value
     };
 }
 
@@ -47,15 +60,16 @@ async function loadRequests(page = 1) {
         cells: [
             { html: `<span class="font-medium">${item.id}</span>` },
             { text: new Date(item.created_at).toLocaleString('ru-RU') },
-            { text: item.author_fio },
-            { text: item.author_position || '' },
-            { text: item.author_department || '' },
+            { html: `<div class="space-y-1"><div class="font-medium text-slate-700">${item.author_fio}</div><div class="text-xs text-slate-400">${item.author_position || ''}</div></div>` },
+            { text: item.author_department || '—' },
+            { html: renderPriorityBadge(item.priority) },
+            { html: `<div class="space-y-1">${renderStatusBadge(item.status)}<div class="text-xs text-slate-400">${new Date(item.updated_at || item.created_at).toLocaleDateString('ru-RU')}</div></div>` },
             { text: item.items_count.toString() },
-            { html: `<div class="space-y-1"><div>${renderStatusBadge(item.status)}</div><div class="text-xs text-slate-400">${new Date(item.updated_at || item.created_at).toLocaleDateString('ru-RU')}</div></div>` },
+            { text: item.attachments_count.toString() },
             { html: renderJustificationPreview(item.justification) },
             {
                 html: `
-                <div class="flex justify-end space-x-2">
+                <div class="flex justify-end space-x-2 text-sm">
                     <button data-action="pdf" data-id="${item.id}" class="text-emerald-600 hover:text-emerald-800">PDF</button>
                     <button data-action="status" data-id="${item.id}" data-status="${item.status}" class="text-blue-600 hover:text-blue-800">Изменить статус</button>
                 </div>`
@@ -128,13 +142,13 @@ async function loadUsers() {
     const rows = response.data.map((user) => ({
         id: user.id,
         cells: [
-            { text: user.fio },
+            { html: `<div class="space-y-1"><div class="font-medium text-slate-700">${user.fio}</div><div class="text-xs text-slate-400">${user.department || ''}</div></div>` },
             { text: user.login },
             { text: user.role === 'admin' ? 'Администратор' : 'Пользователь' },
             { text: user.is_active ? 'Активен' : 'Заблокирован' },
             {
                 html: `
-                <div class="flex justify-end space-x-2">
+                <div class="flex justify-end space-x-2 text-sm">
                     <button data-action="reset" data-id="${user.id}" class="text-amber-600 hover:text-amber-800">Сбросить пароль</button>
                     <button data-action="toggle" data-id="${user.id}" class="text-blue-600 hover:text-blue-800">${user.is_active ? 'Деактивировать' : 'Активировать'}</button>
                     <button data-action="delete" data-id="${user.id}" class="text-red-500 hover:text-red-700">Удалить</button>
@@ -174,6 +188,7 @@ async function toggleUser(id) {
     if (response.ok) {
         showToast('Статус пользователя обновлён', 'success');
         await loadUsers();
+        await loadRequests(adminPage);
     } else {
         showToast(response.error || 'Ошибка обновления', 'error');
     }
@@ -220,14 +235,14 @@ async function loadCatalogs() {
 
     categories.forEach((category) => {
         const li = document.createElement('li');
-        li.className = 'flex items-center justify-between bg-slate-100 px-3 py-2 rounded';
+        li.className = 'flex items-center justify-between bg-white px-3 py-2 rounded border border-slate-200';
         li.innerHTML = `<span>${category.name}</span><button data-id="${category.id}" class="toggleCategory text-xs text-blue-600 hover:text-blue-800">${category.is_active ? 'Скрыть' : 'Показать'}</button>`;
         categoriesList.appendChild(li);
     });
 
     units.forEach((unit) => {
         const li = document.createElement('li');
-        li.className = 'flex items-center justify-between bg-slate-100 px-3 py-2 rounded';
+        li.className = 'flex items-center justify-between bg-white px-3 py-2 rounded border border-slate-200';
         li.innerHTML = `<span>${unit.name}</span><button data-id="${unit.id}" class="toggleUnit text-xs text-blue-600 hover:text-blue-800">${unit.is_active ? 'Скрыть' : 'Показать'}</button>`;
         unitsList.appendChild(li);
     });
@@ -296,7 +311,7 @@ async function loadMaterials() {
             { text: material.description || '' },
             {
                 html: `
-                <div class="flex justify-end space-x-2">
+                <div class="flex justify-end space-x-2 text-sm">
                     <button data-action="toggle" data-id="${material.id}" class="text-blue-600 hover:text-blue-800">${material.is_active ? 'Скрыть' : 'Показать'}</button>
                     <button data-action="delete" data-id="${material.id}" class="text-red-500 hover:text-red-700">Удалить</button>
                 </div>`
@@ -389,12 +404,13 @@ async function loadSummary() {
         return;
     }
     const container = document.getElementById('summaryContainer');
+    if (!container) return;
     container.innerHTML = '';
     response.data.forEach((item) => {
         const card = document.createElement('div');
-        card.className = 'bg-slate-100 rounded p-4 shadow-inner';
+        card.className = 'bg-white rounded-xl p-4 shadow-inner border border-slate-200';
         card.innerHTML = `
-            <div class="text-xs uppercase text-slate-500">${item.metric}</div>
+            <div class="text-xs uppercase text-slate-400">${item.metric}</div>
             <div class="mt-2 text-2xl font-semibold text-slate-800">${item.value}</div>
             <div class="mt-1 text-xs text-slate-500">${item.description}</div>
         `;
@@ -402,23 +418,122 @@ async function loadSummary() {
     });
 }
 
+function destroyChart(id) {
+    if (charts[id]) {
+        charts[id].destroy();
+        delete charts[id];
+    }
+}
+
+function renderChart(id, type, labels, data, colors) {
+    const canvas = document.getElementById(id);
+    if (!canvas || typeof Chart === 'undefined') return;
+    destroyChart(id);
+    charts[id] = new Chart(canvas, {
+        type,
+        data: {
+            labels,
+            datasets: [{
+                data,
+                backgroundColor: colors,
+                borderWidth: 0
+            }]
+        },
+        options: {
+            plugins: {
+                legend: { position: 'bottom' }
+            },
+            responsive: true,
+            maintainAspectRatio: false
+        }
+    });
+}
+
+async function loadStatistics() {
+    const response = await apiClient.get('/statistics.php');
+    if (!response.ok) {
+        showToast(response.error || 'Не удалось загрузить статистику', 'error');
+        return;
+    }
+    const data = response.data;
+    const palette = ['#10b981', '#0ea5e9', '#6366f1', '#f97316', '#f43f5e', '#8b5cf6', '#14b8a6', '#facc15'];
+
+    const statusLabels = data.status.map((s) => statuses[s.status] || s.status);
+    const priorityLabels = data.priority.map((s) => ({ normal: 'Обычный', urgent: 'Срочный', critical: 'Критический' }[s.priority] || s.priority));
+    renderChart('chartStatus', 'doughnut', statusLabels, data.status.map((s) => Number(s.cnt)), palette);
+    renderChart('chartPriority', 'pie', priorityLabels, data.priority.map((s) => Number(s.cnt)), ['#94a3b8', '#f59e0b', '#ef4444']);
+    renderChart('chartCategory', 'bar', data.category.map((s) => s.category), data.category.map((s) => Number(s.cnt)), palette);
+    renderChart('chartDepartment', 'bar', data.department.map((s) => s.department), data.department.map((s) => Number(s.cnt)), palette);
+
+    const monthlyLabels = data.monthly.map((item) => item.ym);
+    const monthlyValues = data.monthly.map((item) => Number(item.cnt));
+    const canvas = document.getElementById('chartMonthly');
+    if (canvas && typeof Chart !== 'undefined') {
+        destroyChart('chartMonthly');
+        charts.chartMonthly = new Chart(canvas, {
+            type: 'line',
+            data: {
+                labels: monthlyLabels,
+                datasets: [{
+                    label: 'Заявок',
+                    data: monthlyValues,
+                    borderColor: '#0ea5e9',
+                    backgroundColor: 'rgba(14,165,233,0.2)',
+                    tension: 0.35,
+                    fill: true
+                }]
+            },
+            options: {
+                plugins: {
+                    legend: { display: false }
+                },
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+    }
+    statsLoaded = true;
+}
+
 async function loadAuditLog() {
-    const response = await apiClient.get('/requests.php?action=audit');
+    const response = await apiClient.get('/logs.php?page=1&per_page=150');
     if (!response.ok) {
         showToast(response.error || 'Не удалось загрузить аудит', 'error');
         return;
     }
-    const rows = response.data.map((entry) => ({
+    const rows = response.data.items.map((entry) => ({
         id: entry.id,
         cells: [
             { text: new Date(entry.created_at).toLocaleString('ru-RU') },
             { text: entry.user_fio || 'Система' },
             { text: entry.action },
             { text: entry.entity || '-' },
-            { text: entry.meta || '' }
+            { text: entry.meta ? JSON.stringify(entry.meta, null, 0) : '' },
+            { text: entry.ip || '' }
         ]
     }));
     renderTableRows(document.getElementById('auditBody'), rows);
+}
+
+function initTabs() {
+    const buttons = document.querySelectorAll('.tab-btn');
+    const sections = document.querySelectorAll('[data-tab-content]');
+    buttons.forEach((btn) => {
+        btn.addEventListener('click', async () => {
+            const target = btn.getAttribute('data-tab');
+            buttons.forEach((b) => b.classList.remove('bg-emerald-100', 'text-emerald-700', 'shadow-inner'));
+            btn.classList.add('bg-emerald-100', 'text-emerald-700', 'shadow-inner');
+            sections.forEach((section) => {
+                section.classList.toggle('hidden', section.getAttribute('data-tab-content') !== target);
+            });
+            if (target === 'reports' && !statsLoaded) {
+                await Promise.all([loadSummary(), loadStatistics()]);
+            }
+            if (target === 'audit') {
+                await loadAuditLog();
+            }
+        });
+    });
 }
 
 export async function initAdminPanel() {
@@ -428,6 +543,8 @@ export async function initAdminPanel() {
         return;
     }
     document.getElementById('adminInfo').textContent = me.data.fio;
+
+    initTabs();
 
     document.getElementById('logoutBtn').addEventListener('click', async () => {
         const csrfToken = await apiClient.getCsrfToken();
@@ -487,8 +604,6 @@ export async function initAdminPanel() {
         if (!button) return;
         toggleCatalogItem('unit', button.dataset.id);
     });
-
-    document.getElementById('refreshSummaryBtn').addEventListener('click', loadSummary);
 
     const materialForm = document.getElementById('materialForm');
     if (materialForm) {
@@ -563,5 +678,6 @@ export async function initAdminPanel() {
         });
     }
 
-    await Promise.all([loadRequests(), loadUsers(), loadCatalogs(), loadMaterials(), loadSummary(), loadAuditLog()]);
+    await Promise.all([loadRequests(), loadUsers(), loadCatalogs(), loadMaterials()]);
+    await loadSummary();
 }

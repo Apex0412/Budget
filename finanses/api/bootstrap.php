@@ -25,5 +25,14 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
     session_start();
 }
 
+$timeout = 1800;
+$now = time();
+if (!empty($_SESSION['last_activity']) && ($now - (int)$_SESSION['last_activity']) > $timeout) {
+    session_unset();
+    session_destroy();
+    session_start();
+}
+$_SESSION['last_activity'] = $now;
+
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/middleware.php';

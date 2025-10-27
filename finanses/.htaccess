@@ -16,5 +16,6 @@ RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^api/(.*)$ api/$1 [L]
 
-# Запрет прямого доступа к PDF
+# Запрет прямого доступа к PDF и загруженным файлам
 RewriteRule ^pdf/ - [F,L]
+RewriteRule ^uploads/ - [F,L]

@@ -43,6 +43,20 @@ export function renderStatusBadge(status) {
     return `<span class="px-2 py-1 text-xs rounded ${map[status] || 'bg-slate-200'}">${titles[status] || status}</span>`;
 }
 
+export function renderPriorityBadge(priority) {
+    const map = {
+        normal: 'bg-slate-200 text-slate-700',
+        urgent: 'bg-amber-200 text-amber-800',
+        critical: 'bg-red-200 text-red-800'
+    };
+    const titles = {
+        normal: 'Обычный',
+        urgent: 'Срочный',
+        critical: 'Критический'
+    };
+    return `<span class="px-2 py-1 text-xs rounded ${map[priority] || 'bg-slate-200 text-slate-700'}">${titles[priority] || priority}</span>`;
+}
+
 export function renderJustificationPreview(text) {
     const short = text.length > 60 ? `${text.slice(0, 60)}…` : text;
     return `<span title="${text.replace(/"/g, '&quot;')}">${short}</span>`;
