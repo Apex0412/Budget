@@ -47,6 +47,10 @@ docker compose up -d
 docker compose ps
 docker exec -it $(docker compose ps -q app) bash -lc "composer install && php database/cli.php migrate && php database/cli.php seed"
 # Сайт будет доступен: http://localhost:8080
+
+## PowerShell (из под Windows)
+docker compose build --no-cache
+docker compose up -d
 ```
 
 ### WSL/Ubuntu (root-права)
