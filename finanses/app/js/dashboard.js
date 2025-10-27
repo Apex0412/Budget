@@ -6,6 +6,7 @@ let currentRequestId = null;
 let currentPage = 1;
 let totalPages = 1;
 let filters = {};
+let materialLibrary = [];
 
 const statuses = {
     draft: 'Черновик',
@@ -46,7 +47,7 @@ function addItemRow(data = {}) {
     const row = clone.querySelector('tr');
 
     row.querySelectorAll('input').forEach((input) => {
-        if (data[input.name]) {
+        if (Object.prototype.hasOwnProperty.call(data, input.name)) {
             input.value = data[input.name];
         }
     });
@@ -64,6 +65,85 @@ function updateIndices() {
     document.querySelectorAll('#itemsBody tr').forEach((row, index) => {
         row.querySelector('.index').textContent = index + 1;
     });
+}
+
+function populateMaterialSources() {
+    const select = document.getElementById('materialQuickSelect');
+    if (select) {
+        select.innerHTML = '<option value="">Выберите материал…</option>';
+        materialLibrary.forEach((material) => {
+            const option = document.createElement('option');
+            option.value = material.id;
+            const meta = [material.category_name, material.unit_name].filter(Boolean).join(' · ');
+            option.textContent = meta ? `${material.name} (${meta})` : material.name;
+            select.appendChild(option);
+        });
+    }
+    const nameList = document.getElementById('materialNameSuggestions');
+    if (nameList) {
+        nameList.innerHTML = '';
+        materialLibrary.forEach((material) => {
+            const option = document.createElement('option');
+            option.value = material.name;
+            nameList.appendChild(option);
+        });
+    }
+    const categoryList = document.getElementById('categorySuggestions');
+    if (categoryList) {
+        categoryList.innerHTML = '';
+        const categories = new Set(materialLibrary.map((m) => m.category_name).filter(Boolean));
+        categories.forEach((category) => {
+            const option = document.createElement('option');
+            option.value = category;
+            categoryList.appendChild(option);
+        });
+    }
+    const unitList = document.getElementById('unitSuggestions');
+    if (unitList) {
+        unitList.innerHTML = '';
+        const units = new Set(materialLibrary.map((m) => m.unit_name).filter(Boolean));
+        units.forEach((unit) => {
+            const option = document.createElement('option');
+            option.value = unit;
+            unitList.appendChild(option);
+        });
+    }
+}
+
+async function loadMaterialsDictionary() {
+    const response = await apiClient.get('/materials.php?action=list_active');
+    if (!response.ok) {
+        showToast(response.error || 'Не удалось загрузить справочник материалов', 'warning');
+        materialLibrary = [];
+    } else {
+        materialLibrary = response.data;
+    }
+    populateMaterialSources();
+}
+
+function addMaterialFromCatalog() {
+    const select = document.getElementById('materialQuickSelect');
+    if (!select) return;
+    const id = Number(select.value);
+    if (!id) {
+        showToast('Выберите материал из списка', 'warning');
+        return;
+    }
+    const material = materialLibrary.find((item) => item.id === id);
+    if (!material) {
+        showToast('Материал не найден', 'error');
+        return;
+    }
+    const qty = 1;
+    addItemRow({
+        category: material.category_name || '',
+        item_name: material.name,
+        unit: material.unit_name || '',
+        qty,
+        note: material.description || ''
+    });
+    select.value = '';
+    showToast('Материал добавлен в таблицу', 'success');
 }
 
 async function loadRequests(page = 1) {
@@ -90,7 +170,7 @@ async function loadRequests(page = 1) {
                 html: `
                 <div class="flex justify-end space-x-2">
                     <button data-action="pdf" data-id="${item.id}" class="text-emerald-600 hover:text-emerald-800">PDF</button>
-                    ${item.can_edit ? `<button data-action="edit" data-id="${item.id}" class="text-brand hover:text-brand-dark">Изменить</button>` : ''}
+                    ${item.can_edit ? `<button data-action="edit" data-id="${item.id}" class="text-blue-600 hover:text-blue-800">Изменить</button>` : ''}
                 </div>`
             }
         ]
@@ -192,7 +272,6 @@ async function handlePasswordChange(event) {
 }
 
 export async function initDashboard() {
-    addItemRow();
     document.getElementById('addItemBtn').addEventListener('click', () => addItemRow());
     document.getElementById('saveDraftBtn').addEventListener('click', () => submitRequest('draft'));
     document.getElementById('submitRequestBtn').addEventListener('click', () => submitRequest('submitted'));
@@ -232,6 +311,11 @@ export async function initDashboard() {
         }
     });
 
+    const addMaterialFromCatalogBtn = document.getElementById('addMaterialFromCatalog');
+    if (addMaterialFromCatalogBtn) {
+        addMaterialFromCatalogBtn.addEventListener('click', addMaterialFromCatalog);
+    }
+
     document.getElementById('logoutBtn').addEventListener('click', async () => {
         const csrfToken = await apiClient.getCsrfToken();
         const response = await apiClient.post('/auth.php', '/logout', {}, csrfToken);
@@ -268,6 +352,9 @@ export async function initDashboard() {
         option.textContent = label;
         statusSelect.appendChild(option);
     });
+
+    await loadMaterialsDictionary();
+    addItemRow();
 
     await loadRequests();
 }

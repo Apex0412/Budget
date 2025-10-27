@@ -58,6 +58,20 @@ CREATE TABLE IF NOT EXISTS units (
   is_active TINYINT(1) NOT NULL DEFAULT 1
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+CREATE TABLE IF NOT EXISTS materials (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  category_id INT NULL,
+  unit_id INT NULL,
+  description VARCHAR(500) DEFAULT NULL,
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NULL,
+  FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL,
+  FOREIGN KEY (unit_id) REFERENCES units(id) ON DELETE SET NULL,
+  UNIQUE KEY unique_material (name, category_id, unit_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 INSERT INTO categories (name) VALUES
   ('Спецодежда') ON DUPLICATE KEY UPDATE name = VALUES(name);
 INSERT INTO categories (name) VALUES

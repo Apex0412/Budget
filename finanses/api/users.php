@@ -108,6 +108,21 @@ switch ($action) {
         ok(['temp_password' => $tempPassword]);
         break;
 
+    case 'delete':
+        ensure_method('POST');
+        csrf_check();
+        require_admin();
+        $payload = json_input();
+        $id = (int)($payload['id'] ?? 0);
+        if ($id <= 0) {
+            fail('Некорректный пользователь');
+        }
+        $stmt = $pdo->prepare('DELETE FROM users WHERE id = :id');
+        $stmt->execute([':id' => $id]);
+        log_action($pdo, 'DELETE_USER', 'users', $id);
+        ok(true);
+        break;
+
     default:
         fail('Неизвестное действие', 404);
 }

@@ -89,7 +89,7 @@
         <section class="bg-white shadow rounded-lg p-6 space-y-6">
             <div class="flex items-center justify-between">
                 <h2 class="text-lg font-semibold text-slate-700">Пользователи</h2>
-                <button id="createUserBtn" class="px-3 py-2 bg-brand text-white rounded">Новый пользователь</button>
+                <button id="createUserBtn" class="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Новый пользователь</button>
             </div>
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200" id="usersTable">
@@ -124,6 +124,59 @@
                     <h3 class="font-semibold text-slate-600 mb-2">Единицы измерения</h3>
                     <ul id="unitsList" class="space-y-2 text-sm text-slate-600"></ul>
                 </div>
+            </div>
+        </section>
+
+        <section class="bg-white shadow rounded-lg p-6 space-y-6">
+            <div class="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                    <h2 class="text-lg font-semibold text-slate-700">Номенклатура материалов</h2>
+                    <p class="text-sm text-slate-500">Добавляйте позиции вручную или импортируйте из CSV-файла</p>
+                </div>
+                <div class="flex flex-wrap items-center gap-3">
+                    <form id="materialImportForm" class="flex items-center gap-2" enctype="multipart/form-data">
+                        <input type="file" name="file" accept=".csv" class="text-sm" required>
+                        <button type="submit" class="px-3 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200">Импорт CSV</button>
+                    </form>
+                    <button id="materialsExportBtn" class="px-3 py-2 bg-emerald-500 text-white rounded hover:bg-emerald-600">Экспорт CSV</button>
+                </div>
+            </div>
+            <form id="materialForm" class="grid gap-3 md:grid-cols-5 items-end">
+                <div class="md:col-span-2">
+                    <label for="materialName" class="block text-sm font-medium text-slate-600">Наименование <span class="text-red-500">*</span></label>
+                    <input type="text" id="materialName" name="materialName" required class="mt-1 w-full rounded border-gray-300 focus:border-blue-600 focus:ring-blue-600" placeholder="Например, Перчатки утеплённые">
+                </div>
+                <div>
+                    <label for="materialCategory" class="block text-sm font-medium text-slate-600">Категория</label>
+                    <select id="materialCategory" name="materialCategory" class="mt-1 w-full rounded border-gray-300 focus:border-blue-600 focus:ring-blue-600"></select>
+                </div>
+                <div>
+                    <label for="materialUnit" class="block text-sm font-medium text-slate-600">Ед. изм.</label>
+                    <select id="materialUnit" name="materialUnit" class="mt-1 w-full rounded border-gray-300 focus:border-blue-600 focus:ring-blue-600"></select>
+                </div>
+                <div class="md:col-span-1">
+                    <label for="materialDescription" class="block text-sm font-medium text-slate-600">Комментарий</label>
+                    <input type="text" id="materialDescription" name="materialDescription" class="mt-1 w-full rounded border-gray-300 focus:border-blue-600 focus:ring-blue-600" placeholder="Опционально">
+                </div>
+                <div class="md:col-span-1">
+                    <button type="submit" class="w-full px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">Добавить материал</button>
+                </div>
+            </form>
+            <p class="text-xs text-slate-500">Файл CSV должен содержать столбцы: <code>name</code>, <code>category</code>, <code>unit</code>, <code>description</code>, <code>is_active</code>.</p>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200" id="materialsTable">
+                    <thead class="bg-slate-50">
+                        <tr>
+                            <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">Наименование</th>
+                            <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">Категория</th>
+                            <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">Ед. изм.</th>
+                            <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">Статус</th>
+                            <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">Комментарий</th>
+                            <th class="px-3 py-2 text-right text-xs font-semibold text-slate-500">Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200" id="materialsBody"></tbody>
+                </table>
             </div>
         </section>
 

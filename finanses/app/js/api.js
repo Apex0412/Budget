@@ -51,8 +51,21 @@ async function post(resource, action, body = {}, csrfToken) {
     });
 }
 
+async function upload(resource, action, formData, csrfToken) {
+    const headers = {};
+    if (csrfToken) {
+        headers['X-CSRF'] = csrfToken;
+    }
+    return request(`${resource}?action=${encodeURIComponent(action)}`, {
+        method: 'POST',
+        headers,
+        body: formData
+    });
+}
+
 export const apiClient = {
     get,
     post,
+    upload,
     getCsrfToken
 };

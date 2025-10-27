@@ -7,7 +7,7 @@ export function showToast(message, type = 'info') {
     const colors = {
         success: 'bg-emerald-500',
         error: 'bg-red-500',
-        info: 'bg-brand',
+        info: 'bg-blue-600',
         warning: 'bg-amber-500'
     };
     const toast = document.createElement('div');

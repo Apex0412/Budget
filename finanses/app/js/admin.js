@@ -5,6 +5,8 @@ import { renderTableRows } from './table.js';
 let adminPage = 1;
 let adminTotalPages = 1;
 let adminFilters = {};
+let catalogData = { categories: [], units: [] };
+let materialsCache = [];
 
 function collectFilters() {
     return {
@@ -45,7 +47,7 @@ async function loadRequests(page = 1) {
                 html: `
                 <div class="flex justify-end space-x-2">
                     <button data-action="pdf" data-id="${item.id}" class="text-emerald-600 hover:text-emerald-800">PDF</button>
-                    <button data-action="status" data-id="${item.id}" class="text-brand hover:text-brand-dark">Статус</button>
+                    <button data-action="status" data-id="${item.id}" class="text-blue-600 hover:text-blue-800">Статус</button>
                 </div>`
             }
         ]
@@ -120,7 +122,8 @@ async function loadUsers() {
                 html: `
                 <div class="flex justify-end space-x-2">
                     <button data-action="reset" data-id="${user.id}" class="text-amber-600 hover:text-amber-800">Сбросить пароль</button>
-                    <button data-action="toggle" data-id="${user.id}" class="text-red-500 hover:text-red-700">${user.is_active ? 'Деактивировать' : 'Активировать'}</button>
+                    <button data-action="toggle" data-id="${user.id}" class="text-blue-600 hover:text-blue-800">${user.is_active ? 'Деактивировать' : 'Активировать'}</button>
+                    <button data-action="delete" data-id="${user.id}" class="text-red-500 hover:text-red-700">Удалить</button>
                 </div>`
             }
         ]
@@ -173,6 +176,21 @@ async function resetPassword(id) {
     }
 }
 
+async function deleteUser(id) {
+    if (!confirm('Удалить пользователя и связанные заявки?')) {
+        return;
+    }
+    const csrfToken = await apiClient.getCsrfToken();
+    const response = await apiClient.post('/users.php', '/delete', { id }, csrfToken);
+    if (response.ok) {
+        showToast('Пользователь удалён', 'success');
+        await loadUsers();
+        await loadRequests(adminPage);
+    } else {
+        showToast(response.error || 'Ошибка удаления', 'error');
+    }
+}
+
 async function loadCatalogs() {
     const response = await apiClient.get('/catalogs.php?action=list');
     if (!response.ok) {
@@ -180,6 +198,7 @@ async function loadCatalogs() {
         return;
     }
     const { categories, units } = response.data;
+    catalogData = { categories, units };
     const categoriesList = document.getElementById('categoriesList');
     const unitsList = document.getElementById('unitsList');
     categoriesList.innerHTML = '';
@@ -188,16 +207,17 @@ async function loadCatalogs() {
     categories.forEach((category) => {
         const li = document.createElement('li');
         li.className = 'flex items-center justify-between bg-slate-100 px-3 py-2 rounded';
-        li.innerHTML = `<span>${category.name}</span><button data-id="${category.id}" class="toggleCategory text-xs text-brand">${category.is_active ? 'Скрыть' : 'Показать'}</button>`;
+        li.innerHTML = `<span>${category.name}</span><button data-id="${category.id}" class="toggleCategory text-xs text-blue-600 hover:text-blue-800">${category.is_active ? 'Скрыть' : 'Показать'}</button>`;
         categoriesList.appendChild(li);
     });
 
     units.forEach((unit) => {
         const li = document.createElement('li');
         li.className = 'flex items-center justify-between bg-slate-100 px-3 py-2 rounded';
-        li.innerHTML = `<span>${unit.name}</span><button data-id="${unit.id}" class="toggleUnit text-xs text-brand">${unit.is_active ? 'Скрыть' : 'Показать'}</button>`;
+        li.innerHTML = `<span>${unit.name}</span><button data-id="${unit.id}" class="toggleUnit text-xs text-blue-600 hover:text-blue-800">${unit.is_active ? 'Скрыть' : 'Показать'}</button>`;
         unitsList.appendChild(li);
     });
+    updateMaterialFormOptions();
 }
 
 async function addCatalogItem(type) {
@@ -223,6 +243,129 @@ async function toggleCatalogItem(type, id) {
     } else {
         showToast(response.error || 'Ошибка обновления', 'error');
     }
+}
+
+function updateMaterialFormOptions() {
+    const categorySelect = document.getElementById('materialCategory');
+    const unitSelect = document.getElementById('materialUnit');
+    if (!categorySelect || !unitSelect) return;
+    categorySelect.innerHTML = '<option value="">Без категории</option>';
+    unitSelect.innerHTML = '<option value="">Без единицы</option>';
+    catalogData.categories.forEach((category) => {
+        const option = document.createElement('option');
+        option.value = category.id;
+        option.textContent = category.name;
+        categorySelect.appendChild(option);
+    });
+    catalogData.units.forEach((unit) => {
+        const option = document.createElement('option');
+        option.value = unit.id;
+        option.textContent = unit.name;
+        unitSelect.appendChild(option);
+    });
+}
+
+async function loadMaterials() {
+    const response = await apiClient.get('/materials.php?action=list');
+    if (!response.ok) {
+        showToast(response.error || 'Не удалось загрузить материалы', 'error');
+        return;
+    }
+    materialsCache = response.data;
+    const rows = materialsCache.map((material) => ({
+        id: material.id,
+        cells: [
+            { text: material.name },
+            { text: material.category_name || '—' },
+            { text: material.unit_name || '—' },
+            { text: material.is_active ? 'Активен' : 'Скрыт' },
+            { text: material.description || '' },
+            {
+                html: `
+                <div class="flex justify-end space-x-2">
+                    <button data-action="toggle" data-id="${material.id}" class="text-blue-600 hover:text-blue-800">${material.is_active ? 'Скрыть' : 'Показать'}</button>
+                    <button data-action="delete" data-id="${material.id}" class="text-red-500 hover:text-red-700">Удалить</button>
+                </div>`
+            }
+        ]
+    }));
+    renderTableRows(document.getElementById('materialsBody'), rows);
+}
+
+async function createMaterial(event) {
+    event.preventDefault();
+    const form = event.target;
+    const name = form.materialName.value.trim();
+    if (!name) {
+        showToast('Укажите наименование материала', 'error');
+        return;
+    }
+    const payload = {
+        name,
+        category_id: form.materialCategory.value ? Number(form.materialCategory.value) : null,
+        unit_id: form.materialUnit.value ? Number(form.materialUnit.value) : null,
+        description: form.materialDescription.value.trim()
+    };
+    const csrfToken = await apiClient.getCsrfToken();
+    const response = await apiClient.post('/materials.php', '/create', payload, csrfToken);
+    if (response.ok) {
+        showToast('Материал добавлен', 'success');
+        form.reset();
+        updateMaterialFormOptions();
+        await loadMaterials();
+    } else {
+        showToast(response.error || 'Ошибка добавления материала', 'error');
+    }
+}
+
+async function toggleMaterial(id) {
+    const csrfToken = await apiClient.getCsrfToken();
+    const response = await apiClient.post('/materials.php', '/toggle', { id }, csrfToken);
+    if (response.ok) {
+        showToast('Статус материала обновлён', 'success');
+        await loadMaterials();
+    } else {
+        showToast(response.error || 'Не удалось обновить статус', 'error');
+    }
+}
+
+async function deleteMaterial(id) {
+    if (!confirm('Удалить материал?')) {
+        return;
+    }
+    const csrfToken = await apiClient.getCsrfToken();
+    const response = await apiClient.post('/materials.php', '/delete', { id }, csrfToken);
+    if (response.ok) {
+        showToast('Материал удалён', 'success');
+        await loadMaterials();
+    } else {
+        showToast(response.error || 'Ошибка удаления материала', 'error');
+    }
+}
+
+async function importMaterials(event) {
+    event.preventDefault();
+    const form = event.target;
+    const fileInput = form.querySelector('input[type="file"]');
+    if (!fileInput || fileInput.files.length === 0) {
+        showToast('Выберите CSV-файл', 'error');
+        return;
+    }
+    const formData = new FormData();
+    formData.append('file', fileInput.files[0]);
+    const csrfToken = await apiClient.getCsrfToken();
+    const response = await apiClient.upload('/materials.php', '/import', formData, csrfToken);
+    if (response.ok) {
+        showToast(`Импортировано: ${response.data.inserted}, обновлено: ${response.data.updated}`, 'success');
+        fileInput.value = '';
+        await Promise.all([loadCatalogs(), loadMaterials()]);
+    } else {
+        showToast(response.error || 'Ошибка импорта', 'error');
+    }
+}
+
+function exportMaterials() {
+    window.open('../api/materials.php?action=export', '_blank');
 }
 
 async function loadSummary() {
@@ -312,6 +455,9 @@ export async function initAdminPanel() {
         if (button.dataset.action === 'reset') {
             resetPassword(id);
         }
+        if (button.dataset.action === 'delete') {
+            deleteUser(id);
+        }
     });
 
     document.getElementById('addCategoryBtn').addEventListener('click', () => addCatalogItem('category'));
@@ -330,5 +476,32 @@ export async function initAdminPanel() {
 
     document.getElementById('refreshSummaryBtn').addEventListener('click', loadSummary);
 
-    await Promise.all([loadRequests(), loadUsers(), loadCatalogs(), loadSummary(), loadAuditLog()]);
+    const materialForm = document.getElementById('materialForm');
+    if (materialForm) {
+        materialForm.addEventListener('submit', createMaterial);
+    }
+    const materialsBody = document.getElementById('materialsBody');
+    if (materialsBody) {
+        materialsBody.addEventListener('click', (event) => {
+            const button = event.target.closest('button');
+            if (!button) return;
+            const id = button.dataset.id;
+            if (button.dataset.action === 'toggle') {
+                toggleMaterial(id);
+            }
+            if (button.dataset.action === 'delete') {
+                deleteMaterial(id);
+            }
+        });
+    }
+    const materialImportForm = document.getElementById('materialImportForm');
+    if (materialImportForm) {
+        materialImportForm.addEventListener('submit', importMaterials);
+    }
+    const materialsExportBtn = document.getElementById('materialsExportBtn');
+    if (materialsExportBtn) {
+        materialsExportBtn.addEventListener('click', exportMaterials);
+    }
+
+    await Promise.all([loadRequests(), loadUsers(), loadCatalogs(), loadMaterials(), loadSummary(), loadAuditLog()]);
 }

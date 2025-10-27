@@ -2,7 +2,8 @@ export function renderTableRows(tbody, rows) {
     tbody.innerHTML = '';
     if (!rows.length) {
         const emptyRow = document.createElement('tr');
-        emptyRow.innerHTML = `<td colspan="6" class="px-3 py-4 text-center text-sm text-slate-500">Нет данных</td>`;
+        const columnCount = tbody.closest('table')?.querySelectorAll('thead th').length || 1;
+        emptyRow.innerHTML = `<td colspan="${columnCount}" class="px-3 py-4 text-center text-sm text-slate-500">Нет данных</td>`;
         tbody.appendChild(emptyRow);
         return;
     }
