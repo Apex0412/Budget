@@ -1,0 +1,208 @@
+openapi: 3.0.3
+info:
+  title: FINANSES API
+  version: 1.0.0
+servers:
+  - url: https://serpmbu.ru/finanses/public/api
+    description: Production
+  - url: http://localhost/finanses/public/api
+    description: Local
+paths:
+  /auth.php:
+    post:
+      summary: Authentication actions
+      parameters:
+        - in: query
+          name: action
+          schema:
+            type: string
+            enum: [login, logout, change-password, preferences]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                login:
+                  type: string
+                password:
+                  type: string
+                current_password:
+                  type: string
+                new_password:
+                  type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+    get:
+      summary: Получить текущую сессию
+      parameters:
+        - in: query
+          name: action
+          schema:
+            type: string
+            enum: [me]
+      responses:
+        '200': { description: OK }
+
+  /requests.php:
+    get:
+      summary: Список заявок
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+        - in: query
+          name: priority
+          schema:
+            type: string
+        - in: query
+          name: page
+          schema:
+            type: integer
+        - in: query
+          name: id
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: JSON список заявок
+    post:
+      summary: Создать заявку
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestPayload'
+      responses:
+        '200': { description: Создано }
+    put:
+      summary: Обновить заявку
+      parameters:
+        - in: query
+          name: id
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/RequestPayload'
+      responses:
+        '200': { description: Обновлено }
+    delete:
+      summary: Удалить заявку
+      parameters:
+        - in: query
+          name: id
+          schema:
+            type: integer
+      responses:
+        '200': { description: Удалено }
+
+  /files.php:
+    get:
+      summary: Список файлов или PDF
+      parameters:
+        - in: query
+          name: request_id
+          schema:
+            type: integer
+        - in: query
+          name: pdf
+          schema:
+            type: integer
+      responses:
+        '200': { description: Файлы или бинарный PDF }
+    post:
+      summary: Загрузка файлов
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                request_id:
+                  type: integer
+                files:
+                  type: string
+                  format: binary
+      responses:
+        '200': { description: Успех }
+
+  /materials.php:
+    get:
+      summary: Каталог материалов
+      parameters:
+        - in: query
+          name: q
+          schema:
+            type: string
+      responses:
+        '200': { description: JSON список }
+
+  /statistics.php:
+    get:
+      summary: Дашборд статистики (admin)
+      responses:
+        '200': { description: JSON агрегаты }
+
+  /logs.php:
+    get:
+      summary: Журнал аудита (admin)
+      responses:
+        '200': { description: JSON }
+
+components:
+  schemas:
+    RequestPayload:
+      type: object
+      properties:
+        csrf_token:
+          type: string
+        status:
+          type: string
+          enum: [draft, submitted, returned, approved, rejected, in_progress, purchased]
+        justification:
+          type: string
+        basis:
+          type: string
+        priority:
+          type: string
+          enum: [normal, urgent, critical]
+        deadline_date:
+          type: string
+          format: date
+        service_objects:
+          type: array
+          items:
+            type: string
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              category_id:
+                type: integer
+              material_id:
+                type: integer
+              unit_id:
+                type: integer
+              qty:
+                type: number
+              assignment:
+                type: string
+              note:
+                type: string
+              current_stock:
+                type: number
+              required_qty:
+                type: number
+              purchase_qty:
+                type: number
