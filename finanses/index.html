@@ -321,7 +321,7 @@
 
             try {
                 const csrfToken = await apiClient.getCsrfToken();
-                const response = await apiClient.post('/auth.php', '/login', { login, password }, csrfToken);
+                const response = await apiClient.post('/auth.php', 'login', { login, password }, csrfToken);
 
                 if (response.ok) {
                     if (response.data.must_change_password) {

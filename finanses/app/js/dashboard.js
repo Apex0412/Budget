@@ -262,7 +262,7 @@ async function handlePasswordChange(event) {
     }
 
     const csrfToken = await apiClient.getCsrfToken();
-    const response = await apiClient.post('/auth.php', '/password/change', { new_password: newPassword }, csrfToken);
+    const response = await apiClient.post('/auth.php', 'password/change', { new_password: newPassword }, csrfToken);
     if (response.ok) {
         showToast('Пароль успешно изменён', 'success');
         document.getElementById('passwordChangeSection').classList.add('hidden');
@@ -318,7 +318,7 @@ export async function initDashboard() {
 
     document.getElementById('logoutBtn').addEventListener('click', async () => {
         const csrfToken = await apiClient.getCsrfToken();
-        const response = await apiClient.post('/auth.php', '/logout', {}, csrfToken);
+        const response = await apiClient.post('/auth.php', 'logout', {}, csrfToken);
         if (response.ok) {
             window.location.href = '../index.html';
         }

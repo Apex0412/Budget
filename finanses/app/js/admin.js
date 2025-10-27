@@ -61,7 +61,7 @@ async function loadRequests(page = 1) {
 
 async function updateStatus(id, status) {
     const csrfToken = await apiClient.getCsrfToken();
-    const response = await apiClient.post('/requests.php', '/status', { id, status }, csrfToken);
+    const response = await apiClient.post('/requests.php', 'status', { id, status }, csrfToken);
     if (response.ok) {
         showToast('Статус обновлён', 'success');
         await loadRequests(adminPage);
@@ -145,7 +145,7 @@ async function createUser() {
     const role = confirm('Сделать пользователя администратором?') ? 'admin' : 'user';
 
     const csrfToken = await apiClient.getCsrfToken();
-    const response = await apiClient.post('/users.php', '/create', { fio, login, password, role }, csrfToken);
+    const response = await apiClient.post('/users.php', 'create', { fio, login, password, role }, csrfToken);
     if (response.ok) {
         showToast('Пользователь создан', 'success');
         await loadUsers();
@@ -156,7 +156,7 @@ async function createUser() {
 
 async function toggleUser(id) {
     const csrfToken = await apiClient.getCsrfToken();
-    const response = await apiClient.post('/users.php', '/deactivate', { id }, csrfToken);
+    const response = await apiClient.post('/users.php', 'deactivate', { id }, csrfToken);
     if (response.ok) {
         showToast('Статус пользователя обновлён', 'success');
         await loadUsers();
@@ -167,7 +167,7 @@ async function toggleUser(id) {
 
 async function resetPassword(id) {
     const csrfToken = await apiClient.getCsrfToken();
-    const response = await apiClient.post('/users.php', '/reset_password', { id }, csrfToken);
+    const response = await apiClient.post('/users.php', 'reset_password', { id }, csrfToken);
     if (response.ok) {
         showToast(`Временный пароль: ${response.data.temp_password}`, 'info');
         await loadUsers();
@@ -181,7 +181,7 @@ async function deleteUser(id) {
         return;
     }
     const csrfToken = await apiClient.getCsrfToken();
-    const response = await apiClient.post('/users.php', '/delete', { id }, csrfToken);
+    const response = await apiClient.post('/users.php', 'delete', { id }, csrfToken);
     if (response.ok) {
         showToast('Пользователь удалён', 'success');
         await loadUsers();
@@ -307,7 +307,7 @@ async function createMaterial(event) {
         description: form.materialDescription.value.trim()
     };
     const csrfToken = await apiClient.getCsrfToken();
-    const response = await apiClient.post('/materials.php', '/create', payload, csrfToken);
+    const response = await apiClient.post('/materials.php', 'create', payload, csrfToken);
     if (response.ok) {
         showToast('Материал добавлен', 'success');
         form.reset();
@@ -320,7 +320,7 @@ async function createMaterial(event) {
 
 async function toggleMaterial(id) {
     const csrfToken = await apiClient.getCsrfToken();
-    const response = await apiClient.post('/materials.php', '/toggle', { id }, csrfToken);
+    const response = await apiClient.post('/materials.php', 'toggle', { id }, csrfToken);
     if (response.ok) {
         showToast('Статус материала обновлён', 'success');
         await loadMaterials();
@@ -334,7 +334,7 @@ async function deleteMaterial(id) {
         return;
     }
     const csrfToken = await apiClient.getCsrfToken();
-    const response = await apiClient.post('/materials.php', '/delete', { id }, csrfToken);
+    const response = await apiClient.post('/materials.php', 'delete', { id }, csrfToken);
     if (response.ok) {
         showToast('Материал удалён', 'success');
         await loadMaterials();
@@ -354,7 +354,7 @@ async function importMaterials(event) {
     const formData = new FormData();
     formData.append('file', fileInput.files[0]);
     const csrfToken = await apiClient.getCsrfToken();
-    const response = await apiClient.upload('/materials.php', '/import', formData, csrfToken);
+    const response = await apiClient.upload('/materials.php', 'import', formData, csrfToken);
     if (response.ok) {
         showToast(`Импортировано: ${response.data.inserted}, обновлено: ${response.data.updated}`, 'success');
         fileInput.value = '';
@@ -417,7 +417,7 @@ export async function initAdminPanel() {
 
     document.getElementById('logoutBtn').addEventListener('click', async () => {
         const csrfToken = await apiClient.getCsrfToken();
-        await apiClient.post('/auth.php', '/logout', {}, csrfToken);
+        await apiClient.post('/auth.php', 'logout', {}, csrfToken);
         window.location.href = '../index.html';
     });
 

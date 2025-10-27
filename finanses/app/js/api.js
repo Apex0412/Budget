@@ -44,7 +44,8 @@ async function post(resource, action, body = {}, csrfToken) {
     if (csrfToken) {
         headers['X-CSRF'] = csrfToken;
     }
-    return request(`${resource}?action=${encodeURIComponent(action)}`, {
+    const normalizedAction = String(action).replace(/^\/+/, '');
+    return request(`${resource}?action=${encodeURIComponent(normalizedAction)}`, {
         method: 'POST',
         headers,
         body: JSON.stringify(body)
@@ -56,7 +57,8 @@ async function upload(resource, action, formData, csrfToken) {
     if (csrfToken) {
         headers['X-CSRF'] = csrfToken;
     }
-    return request(`${resource}?action=${encodeURIComponent(action)}`, {
+    const normalizedAction = String(action).replace(/^\/+/, '');
+    return request(`${resource}?action=${encodeURIComponent(normalizedAction)}`, {
         method: 'POST',
         headers,
         body: formData
