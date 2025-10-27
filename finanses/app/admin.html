@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Панель закупок — Система заявок</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module" src="./js/admin.js"></script>
+</head>
+<body class="min-h-screen bg-slate-100" data-role="admin">
+    <div id="toast-container" class="fixed inset-x-0 top-4 flex flex-col items-center space-y-3 z-50"></div>
+    <header class="bg-white shadow">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+            <div>
+                <h1 class="text-xl font-semibold text-slate-800">Управление закупками</h1>
+                <p class="text-sm text-slate-500">Контролируйте заявки, пользователей и справочники</p>
+            </div>
+            <div class="flex items-center space-x-4">
+                <span id="adminInfo" class="text-sm text-slate-600"></span>
+                <button id="logoutBtn" class="px-3 py-1 rounded-md bg-red-500 hover:bg-red-600 text-white">Выйти</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 py-6 space-y-10">
+        <section class="bg-white shadow rounded-lg p-6 space-y-4">
+            <div class="flex flex-wrap gap-4 items-end justify-between">
+                <div>
+                    <h2 class="text-lg font-semibold text-slate-700">Фильтры</h2>
+                    <p class="text-sm text-slate-500">Отфильтруйте заявки по параметрам</p>
+                </div>
+                <div class="flex flex-wrap gap-3">
+                    <input type="date" id="adminFilterFrom" class="rounded border-gray-300 text-sm">
+                    <input type="date" id="adminFilterTo" class="rounded border-gray-300 text-sm">
+                    <input type="text" id="adminFilterFio" placeholder="ФИО" class="rounded border-gray-300 text-sm">
+                    <input type="text" id="adminFilterDept" placeholder="Подразделение" class="rounded border-gray-300 text-sm">
+                    <select id="adminFilterStatus" class="rounded border-gray-300 text-sm">
+                        <option value="">Все статусы</option>
+                        <option value="draft">Черновик</option>
+                        <option value="submitted">Отправлена</option>
+                        <option value="approved">Согласована</option>
+                        <option value="rejected">Отклонена</option>
+                        <option value="in_progress">В работе</option>
+                        <option value="purchased">Закуплено</option>
+                    </select>
+                    <input type="text" id="adminFilterCategory" placeholder="Категория" class="rounded border-gray-300 text-sm">
+                    <button id="adminApplyFilters" class="px-3 py-2 bg-slate-200 rounded text-sm">Применить</button>
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200" id="adminRequestsTable">
+                    <thead class="bg-slate-50">
+                        <tr>
+                            <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">№</th>
+                            <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">Дата</th>
+                            <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">ФИО</th>
+                            <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">Должность</th>
+                            <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">Подразделение</th>
+                            <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">Позиций</th>
+                            <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">Статус</th>
+                            <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">Обоснование</th>
+                            <th class="px-3 py-2 text-right text-xs font-semibold text-slate-500">Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200" id="adminRequestsBody"></tbody>
+                </table>
+            </div>
+            <div class="flex justify-between items-center text-sm text-slate-500">
+                <span id="adminRequestsSummary"></span>
+                <div class="space-x-2">
+                    <button id="adminPrevPage" class="px-2 py-1 bg-slate-200 rounded disabled:opacity-50">Назад</button>
+                    <button id="adminNextPage" class="px-2 py-1 bg-slate-200 rounded disabled:opacity-50">Вперёд</button>
+                </div>
+            </div>
+            <div class="flex flex-wrap gap-3">
+                <button id="exportCsvBtn" class="px-4 py-2 bg-emerald-500 text-white rounded-md hover:bg-emerald-600">Экспорт CSV</button>
+                <button id="exportXlsxBtn" class="px-4 py-2 bg-indigo-500 text-white rounded-md hover:bg-indigo-600">Экспорт XLSX</button>
+            </div>
+        </section>
+
+        <section class="bg-white shadow rounded-lg p-6 space-y-4">
+            <div class="flex items-center justify-between">
+                <h2 class="text-lg font-semibold text-slate-700">Сводка</h2>
+                <button id="refreshSummaryBtn" class="px-3 py-2 bg-slate-200 rounded text-sm">Обновить</button>
+            </div>
+            <div id="summaryContainer" class="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-slate-600"></div>
+        </section>
+
+        <section class="bg-white shadow rounded-lg p-6 space-y-6">
+            <div class="flex items-center justify-between">
+                <h2 class="text-lg font-semibold text-slate-700">Пользователи</h2>
+                <button id="createUserBtn" class="px-3 py-2 bg-brand text-white rounded">Новый пользователь</button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200" id="usersTable">
+                    <thead class="bg-slate-50">
+                        <tr>
+                            <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">ФИО</th>
+                            <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">Логин</th>
+                            <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">Роль</th>
+                            <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">Статус</th>
+                            <th class="px-3 py-2 text-right text-xs font-semibold text-slate-500">Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200" id="usersBody"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section class="bg-white shadow rounded-lg p-6 space-y-6">
+            <div class="flex items-center justify-between">
+                <h2 class="text-lg font-semibold text-slate-700">Справочники</h2>
+                <div class="space-x-2">
+                    <button id="addCategoryBtn" class="px-3 py-2 bg-slate-200 rounded">Добавить категорию</button>
+                    <button id="addUnitBtn" class="px-3 py-2 bg-slate-200 rounded">Добавить единицу</button>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <h3 class="font-semibold text-slate-600 mb-2">Категории</h3>
+                    <ul id="categoriesList" class="space-y-2 text-sm text-slate-600"></ul>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-slate-600 mb-2">Единицы измерения</h3>
+                    <ul id="unitsList" class="space-y-2 text-sm text-slate-600"></ul>
+                </div>
+            </div>
+        </section>
+
+        <section class="bg-white shadow rounded-lg p-6 space-y-4">
+            <h2 class="text-lg font-semibold text-slate-700">Аудит-лог</h2>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200" id="auditTable">
+                    <thead class="bg-slate-50">
+                        <tr>
+                            <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">Дата</th>
+                            <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">Пользователь</th>
+                            <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">Действие</th>
+                            <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">Сущность</th>
+                            <th class="px-3 py-2 text-left text-xs font-semibold text-slate-500">Детали</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200" id="auditBody"></tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+    <template id="statusMenuTemplate">
+        <div class="flex flex-wrap gap-2">
+            <button data-status="submitted" class="px-2 py-1 bg-slate-200 rounded text-xs">Отправлена</button>
+            <button data-status="approved" class="px-2 py-1 bg-emerald-200 rounded text-xs">Согласована</button>
+            <button data-status="rejected" class="px-2 py-1 bg-red-200 rounded text-xs">Отклонена</button>
+            <button data-status="in_progress" class="px-2 py-1 bg-amber-200 rounded text-xs">В работе</button>
+            <button data-status="purchased" class="px-2 py-1 bg-indigo-200 rounded text-xs">Закуплено</button>
+        </div>
+    </template>
+
+    <script type="module">
+        import { initAdminPanel } from './js/admin.js';
+        initAdminPanel();
+    </script>
+</body>
+</html>

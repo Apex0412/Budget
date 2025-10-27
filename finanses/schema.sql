@@ -1,0 +1,68 @@
+SET NAMES utf8mb4;
+SET time_zone = '+03:00';
+
+CREATE TABLE IF NOT EXISTS users (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  fio VARCHAR(255) NOT NULL,
+  position VARCHAR(255) DEFAULT NULL,
+  department VARCHAR(255) DEFAULT NULL,
+  login VARCHAR(64) NOT NULL UNIQUE,
+  password_hash VARCHAR(255) NOT NULL,
+  role ENUM('user','admin') NOT NULL DEFAULT 'user',
+  must_change_password TINYINT(1) NOT NULL DEFAULT 0,
+  is_active TINYINT(1) NOT NULL DEFAULT 1,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS requests (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  author_id INT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP NULL,
+  status ENUM('draft','submitted','approved','rejected','in_progress','purchased') NOT NULL DEFAULT 'submitted',
+  justification TEXT NOT NULL,
+  FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS request_items (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  request_id BIGINT NOT NULL,
+  category VARCHAR(255) NOT NULL,
+  item_name VARCHAR(255) NOT NULL,
+  unit VARCHAR(64) NOT NULL,
+  qty DECIMAL(12,2) NOT NULL,
+  note VARCHAR(500) DEFAULT NULL,
+  FOREIGN KEY (request_id) REFERENCES requests(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS audit_log (
+  id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  user_id INT,
+  action VARCHAR(64) NOT NULL,
+  entity VARCHAR(64) NULL,
+  entity_id BIGINT NULL,
+  meta JSON NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_audit_created_at (created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS categories (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(255) UNIQUE NOT NULL,
+  is_active TINYINT(1) NOT NULL DEFAULT 1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS units (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(64) UNIQUE NOT NULL,
+  is_active TINYINT(1) NOT NULL DEFAULT 1
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+INSERT INTO categories (name) VALUES
+  ('Спецодежда') ON DUPLICATE KEY UPDATE name = VALUES(name);
+INSERT INTO categories (name) VALUES
+  ('Инструмент') ON DUPLICATE KEY UPDATE name = VALUES(name);
+INSERT INTO categories (name) VALUES
+  ('Материалы') ON DUPLICATE KEY UPDATE name = VALUES(name);
+INSERT INTO categories (name) VALUES
+  ('ДИП') ON DUPLICATE KEY UPDATE name = VALUES(name);

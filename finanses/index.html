@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Система заявок на закупку — Вход</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            DEFAULT: '#1d4ed8',
+                            dark: '#1e3a8a'
+                        }
+                    }
+                }
+            }
+        };
+    </script>
+    <link rel="icon" href="app/img/favicon.ico">
+</head>
+<body class="min-h-screen bg-slate-100 flex items-center justify-center p-6">
+    <div class="max-w-md w-full bg-white shadow-xl rounded-lg p-8 space-y-6">
+        <div class="text-center">
+            <h1 class="text-2xl font-bold text-gray-800">Система заявок на закупку</h1>
+            <p class="text-sm text-gray-500 mt-2">Вход в личный кабинет</p>
+        </div>
+        <form id="loginForm" class="space-y-4">
+            <div>
+                <label for="login" class="block text-sm font-medium text-gray-700">Логин</label>
+                <input id="login" name="login" type="text" required autocomplete="username" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brand focus:ring-brand">
+            </div>
+            <div>
+                <label for="password" class="block text-sm font-medium text-gray-700">Пароль</label>
+                <input id="password" name="password" type="password" required autocomplete="current-password" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-brand focus:ring-brand">
+            </div>
+            <button type="submit" class="w-full py-2 px-4 bg-brand hover:bg-brand-dark text-white font-semibold rounded-md transition">Войти</button>
+        </form>
+        <div id="loginMessage" class="text-sm text-center"></div>
+    </div>
+
+    <script type="module">
+        import { apiClient } from './app/js/api.js';
+        import { showToast } from './app/js/ui.js';
+
+        const form = document.getElementById('loginForm');
+        const message = document.getElementById('loginMessage');
+
+        form.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            message.textContent = '';
+
+            const login = form.login.value.trim();
+            const password = form.password.value;
+
+            if (!login || !password) {
+                showToast('Введите логин и пароль', 'error');
+                return;
+            }
+
+            try {
+                const csrfToken = await apiClient.getCsrfToken();
+                const response = await apiClient.post('/auth.php', '/login', { login, password }, csrfToken);
+
+                if (response.ok) {
+                    if (response.data.must_change_password) {
+                        window.location.href = 'app/dashboard.html?change_password=1';
+                    } else {
+                        window.location.href = response.data.role === 'admin' ? 'app/admin.html' : 'app/dashboard.html';
+                    }
+                } else {
+                    message.textContent = response.error || 'Не удалось войти';
+                    message.className = 'text-sm text-center text-red-600';
+                }
+            } catch (error) {
+                console.error(error);
+                showToast('Ошибка сети. Попробуйте позже.', 'error');
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,1 +1,166 @@
-# Budget
+# Система заявок на закупку
+
+Готовый к развертыванию веб-проект на PHP 8.1+/MySQL 8+ для сбора, согласования и учёта заявок на закупку. Фронтенд построен на Vanilla JS и TailwindCSS, серверная генерация PDF осуществляется через TCPDF, а выгрузка XLSX — через PHPSpreadsheet. Репозиторий содержит полный набор файлов, необходимых для установки как на виртуальном/шаред-хостинге, так и на локальной машине под Windows, Linux или в WSL.
+
+## Состав проекта
+
+```
+/finanses
+├─ index.html                — страница входа
+├─ app/                      — защищённая часть интерфейса
+│  ├─ dashboard.html         — кабинет пользователя
+│  ├─ admin.html             — панель закупок/админа
+│  ├─ js/, css/, img/        — фронтенд-скрипты и стили
+├─ api/                      — PHP API-эндпоинты, bootstrap и middleware
+├─ pdf/                      — кеш PDF (защищён в .htaccess)
+├─ vendor/                   — внешние библиотеки (TCPDF, PHPSpreadsheet)
+├─ .env.example              — шаблон переменных окружения
+├─ .htaccess                 — правила для Apache
+├─ composer.json             — зависимости
+├─ schema.sql                — схема БД MySQL
+├─ seed_users.sql            — примерные пользователи
+└─ tools/hash_passwords.php  — CLI для пересчёта временных паролей в bcrypt
+```
+
+## Требования
+
+- PHP 8.1 или выше с расширениями: PDO (MySQL), mbstring, json, intl, gd.
+- MySQL 8.0 или совместимый MariaDB 10.6+.
+- Composer для установки PHP-зависимостей (TCPDF, PHPSpreadsheet).
+- Веб-сервер Apache 2.4+ с поддержкой `.htaccess` (для Nginx — адаптировать правила вручную).
+
+## Развёртывание на виртуальном/шаред-хостинге
+
+1. **Подготовка окружения**
+   - Создайте поддомена/папку `/finanses` на домене `serpmbu.ru` (или другом по необходимости).
+   - Убедитесь, что PHP 8.1+ и MySQL 8+ доступны в панели хостинга.
+
+2. **Загрузка файлов**
+   - Скопируйте содержимое папки `finanses` в корень веб-пространства `/finanses` (через SFTP/FTP или файловый менеджер).
+   - Убедитесь, что папка `pdf/` недоступна напрямую из браузера (это обеспечит `.htaccess`).
+
+3. **Зависимости**
+   - В файловом менеджере или через SSH запустите `composer install` внутри папки `/finanses`.
+   - Если SSH недоступен, установите TCPDF и PHPSpreadsheet локально и загрузите содержимое `vendor/` вместе с проектом.
+
+4. **База данных**
+   - Создайте новую БД (например, `finanses`) и пользователя с правами `SELECT/INSERT/UPDATE/DELETE/CREATE/ALTER`.
+   - Импортируйте `schema.sql` через phpMyAdmin/консоль.
+   - (Необязательно) импортируйте `seed_users.sql` для тестовых пользователей.
+
+5. **Конфигурация**
+   - Скопируйте `.env.example` в `.env`.
+   - Заполните переменные окружения (хост БД, логин/пароль, `APP_BASE_URL`, `PDF_ORG_NAME`, `CSRF_SECRET` и т.д.).
+   - Убедитесь, что `SESSION_NAME` уникально в рамках домена.
+
+6. **Права доступа**
+   - Установите права на запись для папки `pdf/` (например, `chmod 755` или `775`, в зависимости от настроек хостинга).
+
+7. **Проверка**
+   - Перейдите по адресу `https://ваш-домен/finanses/`.
+   - Авторизуйтесь под одним из пользователей из `seed_users.sql`.
+   - Создайте тестовую заявку, скачайте PDF, убедитесь в корректности экспорта CSV/XLSX.
+
+## Развёртывание на локальном ПК (Windows)
+
+1. **Установите стек**
+   - Установите [XAMPP](https://www.apachefriends.org/index.html) или аналогичный пакет, выбрав PHP 8.1+ и MySQL 8+.
+   - Добавьте Composer: скачайте установщик с [getcomposer.org](https://getcomposer.org/) и выполните глобальную установку.
+
+2. **Копирование файлов**
+   - Расположите папку `finanses` в корне `htdocs` (например, `C:\xampp\htdocs\finanses`).
+
+3. **Composer**
+   - Откройте терминал PowerShell/Command Prompt, перейдите в `C:\xampp\htdocs\finanses` и выполните `composer install`.
+
+4. **Настройка базы**
+   - Запустите Apache и MySQL из панели XAMPP.
+   - Откройте phpMyAdmin: `http://localhost/phpmyadmin`.
+   - Создайте БД `finanses`, выполните импорт `schema.sql` и при необходимости `seed_users.sql`.
+
+5. **.env**
+   - Скопируйте `.env.example` → `.env`, обновите значения:
+     ```env
+     APP_ENV=local
+     APP_BASE_URL=http://localhost/finanses
+     DB_HOST=127.0.0.1
+     DB_NAME=finanses
+     DB_USER=root
+     DB_PASS=   # пусто, если используется дефолтный XAMPP
+     ```
+
+6. **Проверка**
+   - Откройте `http://localhost/finanses/` в браузере и авторизуйтесь.
+   - При первом входе под пользователем с временным паролем система потребует его изменить (см. раздел «Управление пользователями» ниже).
+
+## Развёртывание на Linux/WSL
+
+1. **Установите зависимости**
+   ```bash
+   sudo apt update
+   sudo apt install apache2 mysql-server php8.1 php8.1-{cli,common,mysql,mbstring,json,intl,gd,xml,curl,zip} composer unzip
+   ```
+   - Для WSL2: убедитесь, что службы Apache и MySQL запущены (`sudo service apache2 start`, `sudo service mysql start`).
+
+2. **Настройте виртуальный хост**
+   ```bash
+   sudo mkdir -p /var/www/finanses
+   sudo chown -R $USER:www-data /var/www/finanses
+   ```
+   - Скопируйте проект в `/var/www/finanses` (через `git clone` или `rsync`).
+   - Создайте конфиг `/etc/apache2/sites-available/finanses.conf` с привязкой к подкаталогу `/finanses`.
+   - Активируйте сайт и перезапустите Apache:
+     ```bash
+     sudo a2ensite finanses.conf
+     sudo a2enmod rewrite
+     sudo systemctl reload apache2
+     ```
+
+3. **Composer и права**
+   - В каталоге `/var/www/finanses` выполните `composer install`.
+   - Разрешите запись в `pdf/`: `chmod 775 pdf && chgrp www-data pdf`.
+
+4. **База данных**
+   ```bash
+   sudo mysql -e "CREATE DATABASE finanses CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+   sudo mysql -e "CREATE USER 'fin_user'@'localhost' IDENTIFIED BY 'STRONG_PASSWORD';"
+   sudo mysql -e "GRANT ALL PRIVILEGES ON finanses.* TO 'fin_user'@'localhost';"
+   mysql -u fin_user -p finanses < schema.sql
+   mysql -u fin_user -p finanses < seed_users.sql   # опционально
+   ```
+
+5. **Переменные окружения**
+   - Создайте `.env` на основе `.env.example`, пропишите `APP_BASE_URL` (например, `http://localhost/finanses`).
+
+6. **Проверка**
+   - Перейдите на `http://localhost/finanses/` или на домен, указанный в виртуальном хосте, и протестируйте функционал.
+
+## Управление пользователями и безопасностью
+
+- Все пароли хранятся в bcrypt. Для временных паролей используйте CLI `php tools/hash_passwords.php path/to/import.csv` или сброс из админ-панели.
+- Папка `pdf/` предназначена для кеша PDF-файлов и недоступна напрямую благодаря `.htaccess`. Выдача идёт через `api/files.php` с проверкой прав.
+- В административном интерфейсе доступны операции:
+  - Сброс пароля (генерация временного, установка `must_change_password=1`).
+  - Деактивация пользователя.
+  - Управление категориями и единицами измерения.
+
+## Поддержка HTTPS и сессий
+
+- При работе по HTTPS PHP-сессии автоматически помечаются как `secure` и `httponly`.
+- CSRF-токены запрашиваются через `/api/csrf.php` и должны добавляться в заголовок `X-CSRF` для всех модифицирующих запросов.
+
+## Тестирование
+
+- Базовая проверка синтаксиса:
+  ```bash
+  php -l finanses/api/*.php
+  ```
+- Для проверки PDF/экспортов используйте тестовые заявки и убедитесь, что события фиксируются в `audit_log`.
+
+## Полезные советы
+
+- Обновляйте `APP_BASE_URL` при переносе на другой домен/поддомен.
+- После импорта `seed_users.sql` сразу смените временные пароли администраторов.
+- Для загрузки больших CSV/XLSX увеличьте в `php.ini` лимиты `upload_max_filesize` и `post_max_size` (если будете расширять функциональность).
+
+При необходимости адаптируйте конфигурацию под ваш веб-сервер и политику безопасности. Проект готов к использованию сразу после выполнения шагов выше.
