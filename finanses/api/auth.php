@@ -1,8 +1,17 @@
 <?php
 require_once __DIR__ . '/bootstrap.php';
 
-$pdo = get_pdo();
+$connection = try_get_pdo_connection();
+$pdo = $connection['ok'] ? $connection['pdo'] : null;
 $action = $_GET['action'] ?? ($_POST['action'] ?? '');
+
+if ($action !== 'bootstrap-status' && !$connection['ok']) {
+    fail('Нет подключения к базе данных: ' . ($connection['error'] ?? 'проверьте настройки .env'), 500);
+}
+
+if ($action !== 'bootstrap-status' && !($pdo instanceof PDO)) {
+    $pdo = get_pdo();
+}
 
 function users_exist(PDO $pdo): bool
 {
@@ -10,16 +19,149 @@ function users_exist(PDO $pdo): bool
     return (int)$stmt->fetchColumn() > 0;
 }
 
+function collect_diagnostics(?PDO $pdo, array $connection): array
+{
+    $diagnostics = [
+        'phpVersion' => PHP_VERSION,
+        'phpVersionOk' => version_compare(PHP_VERSION, '8.1.0', '>='),
+        'extensions' => [],
+        'directories' => [],
+        'config' => [],
+        'connectionOk' => $connection['ok'],
+        'connectionError' => $connection['ok'] ? null : ($connection['error'] ?? 'Не удалось подключиться к базе данных'),
+        'hasUsers' => false,
+        'userCount' => 0,
+        'usersTableExists' => false,
+        'warnings' => [],
+        'errors' => []
+    ];
+
+    if (!$diagnostics['phpVersionOk']) {
+        $diagnostics['warnings'][] = 'Требуется PHP 8.1 или выше.';
+    }
+
+    $requiredExtensions = [
+        'pdo_mysql' => 'Работа с MySQL (PDO)',
+        'json' => 'Обработка JSON',
+        'mbstring' => 'Многобайтовые строки',
+        'openssl' => 'Генерация токенов и шифрование',
+        'session' => 'Управление сессиями',
+        'fileinfo' => 'Определение типов файлов',
+        'dom' => 'Экспорт XLSX (PHPSpreadsheet)',
+        'gd' => 'Графика и шрифты (TCPDF)',
+        'intl' => 'Локализация и форматирование дат'
+    ];
+
+    foreach ($requiredExtensions as $extension => $description) {
+        $loaded = extension_loaded($extension);
+        $diagnostics['extensions'][] = [
+            'name' => $extension,
+            'description' => $description,
+            'loaded' => $loaded
+        ];
+        if (!$loaded) {
+            $diagnostics['errors'][] = "Расширение {$extension} ({$description}) не найдено.";
+        }
+    }
+
+    $pdfDir = realpath(__DIR__ . '/../pdf') ?: __DIR__ . '/../pdf';
+    $exists = is_dir($pdfDir);
+    $writable = $exists && is_writable($pdfDir);
+    $diagnostics['directories'][] = [
+        'path' => $pdfDir,
+        'exists' => $exists,
+        'writable' => $writable,
+        'description' => 'Каталог для кеширования PDF-файлов'
+    ];
+    if (!$exists) {
+        $diagnostics['errors'][] = 'Каталог finanses/pdf не найден. Создайте его и назначьте права на запись.';
+    } elseif (!$writable) {
+        $diagnostics['warnings'][] = 'Каталог finanses/pdf недоступен для записи. PDF не смогут сохраняться.';
+    }
+
+    $configChecks = [
+        'APP_BASE_URL' => [true, 'Базовый URL приложения'],
+        'DB_HOST' => [true, 'Адрес сервера базы данных'],
+        'DB_NAME' => [true, 'Имя базы данных'],
+        'DB_USER' => [true, 'Пользователь базы данных'],
+        'CSRF_SECRET' => [true, 'Секрет для CSRF-защиты'],
+        'PDF_ORG_NAME' => [false, 'Название организации для PDF'],
+        'PDF_CITY' => [false, 'Город в подвале PDF']
+    ];
+
+    foreach ($configChecks as $envKey => [$required, $description]) {
+        $value = (string)env($envKey, '');
+        $isPresent = $value !== '';
+        if ($envKey === 'CSRF_SECRET' && $isPresent && strlen($value) < 32) {
+            $diagnostics['warnings'][] = 'CSRF_SECRET должен содержать минимум 32 символа.';
+        }
+        if ($required && !$isPresent) {
+            $diagnostics['errors'][] = "Переменная {$envKey} ({$description}) не задана в .env.";
+        }
+        $diagnostics['config'][] = [
+            'key' => $envKey,
+            'description' => $description,
+            'configured' => $isPresent
+        ];
+    }
+
+    if (!$diagnostics['connectionOk']) {
+        $diagnostics['errors'][] = 'Нет подключения к базе данных. Проверьте настройки в .env и доступ MySQL.';
+    }
+
+    if ($pdo instanceof PDO) {
+        try {
+            $stmt = $pdo->query("SHOW TABLES LIKE 'users'");
+            $diagnostics['usersTableExists'] = (bool)$stmt->fetchColumn();
+        } catch (PDOException $e) {
+            $diagnostics['errors'][] = 'Ошибка проверки таблицы users: ' . $e->getMessage();
+        }
+
+        if ($diagnostics['usersTableExists']) {
+            try {
+                $stmt = $pdo->query('SELECT COUNT(*) FROM users');
+                $count = (int)$stmt->fetchColumn();
+                $diagnostics['hasUsers'] = $count > 0;
+                $diagnostics['userCount'] = $count;
+            } catch (PDOException $e) {
+                $diagnostics['errors'][] = 'Ошибка чтения таблицы users: ' . $e->getMessage();
+            }
+        } else {
+            $diagnostics['warnings'][] = 'Таблица users отсутствует. Выполните скрипт schema.sql перед настройкой.';
+        }
+    }
+
+    $diagnostics['canBootstrap'] = $diagnostics['connectionOk']
+        && $diagnostics['usersTableExists']
+        && empty(array_filter($diagnostics['errors'], fn($msg) => $msg !== null));
+
+    return $diagnostics;
+}
+
 switch ($action) {
     case 'bootstrap-status':
         ensure_method('GET');
-        ok(['needsBootstrap' => !users_exist($pdo)]);
+        $diagnostics = collect_diagnostics($pdo, $connection);
+        ok([
+            'needsBootstrap' => !$diagnostics['hasUsers'],
+            'diagnostics' => $diagnostics
+        ]);
         break;
 
     case 'bootstrap-admin':
         ensure_method('POST');
         csrf_check();
-        if (users_exist($pdo)) {
+        if (!$connection['ok']) {
+            fail('Нет подключения к базе данных: ' . ($connection['error'] ?? 'проверьте настройки .env'));
+        }
+        if (!($pdo instanceof PDO)) {
+            fail('Подключение к базе данных недоступно');
+        }
+        $diagnostics = collect_diagnostics($pdo, $connection);
+        if (!$diagnostics['canBootstrap']) {
+            fail('Завершите проверку окружения перед созданием администратора.');
+        }
+        if ($diagnostics['hasUsers']) {
             fail('Установка уже выполнена', 403);
         }
 
@@ -29,6 +171,7 @@ switch ($action) {
         $department = trim((string)($payload['department'] ?? ''));
         $login = trim((string)($payload['login'] ?? ''));
         $password = (string)($payload['password'] ?? '');
+        $deploymentType = trim((string)($payload['deployment'] ?? ''));
 
         if ($fio === '' || $login === '' || $password === '') {
             fail('Заполните ФИО, логин и пароль');
@@ -38,6 +181,9 @@ switch ($action) {
         }
         if (strlen($password) < 8) {
             fail('Минимальная длина пароля — 8 символов');
+        }
+        if ($deploymentType === '') {
+            fail('Укажите, где разворачивается система (локально или на хостинге)');
         }
 
         $hash = password_hash($password, PASSWORD_BCRYPT);
@@ -68,7 +214,10 @@ switch ($action) {
             'is_active' => 1
         ];
 
-        log_action($pdo, 'BOOTSTRAP_ADMIN', 'users', $userId, ['login' => $login]);
+        log_action($pdo, 'BOOTSTRAP_ADMIN', 'users', $userId, [
+            'login' => $login,
+            'deployment' => $deploymentType
+        ]);
         ok(['role' => 'admin', 'must_change_password' => 0, 'bootstrap_complete' => true]);
         break;
 

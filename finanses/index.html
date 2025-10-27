@@ -15,8 +15,47 @@
             <p id="cardSubtitle" class="text-sm text-gray-500 mt-2">Вход в личный кабинет</p>
         </div>
         <div id="bootstrapSection" class="space-y-4 hidden">
-            <p class="text-sm text-gray-600">Перед началом работы создайте первую учетную запись администратора. После этого данная форма больше не появится.</p>
+            <p class="text-sm text-gray-600">Перед началом работы пройдите проверку окружения и создайте первую учетную запись администратора. После завершения настройка больше не потребуется.</p>
+            <div id="diagnosticsPanel" class="space-y-3 bg-slate-50 border border-slate-200 rounded-md p-4">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-sm font-semibold text-slate-700 uppercase tracking-wide">Проверка окружения</h2>
+                    <span id="diagnosticsStatus" class="text-xs font-medium text-slate-500">Проверяем...</span>
+                </div>
+                <ul id="diagnosticsList" class="text-sm text-slate-600 space-y-1"></ul>
+                <div id="diagnosticsWarnings" class="text-xs text-amber-600 space-y-1"></div>
+                <div id="diagnosticsErrors" class="text-xs text-red-600 space-y-1"></div>
+            </div>
             <form id="bootstrapForm" class="space-y-4">
+                <fieldset class="space-y-2">
+                    <legend class="text-sm font-medium text-gray-700">Где вы разворачиваете систему?</legend>
+                    <div class="grid grid-cols-1 gap-2 md:grid-cols-2">
+                        <label class="inline-flex items-center gap-2 text-sm text-gray-600">
+                            <input type="radio" name="deployment" value="hosting" required class="text-emerald-600 focus:ring-emerald-500">
+                            Виртуальный хостинг
+                        </label>
+                        <label class="inline-flex items-center gap-2 text-sm text-gray-600">
+                            <input type="radio" name="deployment" value="windows" class="text-emerald-600 focus:ring-emerald-500">
+                            Локальный ПК (Windows)
+                        </label>
+                        <label class="inline-flex items-center gap-2 text-sm text-gray-600">
+                            <input type="radio" name="deployment" value="linux" class="text-emerald-600 focus:ring-emerald-500">
+                            Локальный ПК/сервер (Linux)
+                        </label>
+                        <label class="inline-flex items-center gap-2 text-sm text-gray-600">
+                            <input type="radio" name="deployment" value="wsl" class="text-emerald-600 focus:ring-emerald-500">
+                            Windows Subsystem for Linux (WSL)
+                        </label>
+                        <label class="inline-flex items-center gap-2 text-sm text-gray-600">
+                            <input type="radio" name="deployment" value="docker" class="text-emerald-600 focus:ring-emerald-500">
+                            Контейнер (Docker/Podman)
+                        </label>
+                        <label class="inline-flex items-center gap-2 text-sm text-gray-600">
+                            <input type="radio" name="deployment" value="other" class="text-emerald-600 focus:ring-emerald-500">
+                            Другое окружение
+                        </label>
+                    </div>
+                    <input id="bootstrapDeploymentOther" name="deployment_other" type="text" placeholder="Опишите окружение" class="hidden mt-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-emerald-600 focus:ring-emerald-600">
+                </fieldset>
                 <div>
                     <label for="bootstrapFio" class="block text-sm font-medium text-gray-700">ФИО</label>
                     <input id="bootstrapFio" name="fio" type="text" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-600 focus:ring-blue-600">
@@ -45,7 +84,8 @@
                     <label for="bootstrapPasswordConfirm" class="block text-sm font-medium text-gray-700">Повторите пароль</label>
                     <input id="bootstrapPasswordConfirm" type="password" required autocomplete="new-password" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-600 focus:ring-blue-600">
                 </div>
-                <button type="submit" class="w-full py-2 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-md transition">Создать администратора</button>
+                <p id="bootstrapDisableNotice" class="text-xs text-amber-600 hidden"></p>
+                <button id="bootstrapSubmit" type="submit" class="w-full py-2 px-4 bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-300 disabled:cursor-not-allowed text-white font-semibold rounded-md transition">Создать администратора</button>
             </form>
             <div id="bootstrapMessage" class="text-sm text-center"></div>
             <p class="text-xs text-gray-400">Совет: сохраните пароль в менеджере паролей. После входа вы сможете добавить других пользователей из админ-панели.</p>
@@ -78,6 +118,14 @@
         const loginSection = document.getElementById('loginSection');
         const cardTitle = document.getElementById('cardTitle');
         const cardSubtitle = document.getElementById('cardSubtitle');
+        const diagnosticsPanel = document.getElementById('diagnosticsPanel');
+        const diagnosticsList = document.getElementById('diagnosticsList');
+        const diagnosticsWarnings = document.getElementById('diagnosticsWarnings');
+        const diagnosticsErrors = document.getElementById('diagnosticsErrors');
+        const diagnosticsStatus = document.getElementById('diagnosticsStatus');
+        const bootstrapDisableNotice = document.getElementById('bootstrapDisableNotice');
+        const bootstrapSubmit = document.getElementById('bootstrapSubmit');
+        const deploymentOtherInput = document.getElementById('bootstrapDeploymentOther');
 
         async function detectBootstrap() {
             try {
@@ -87,6 +135,7 @@
                     cardSubtitle.textContent = 'Создайте учетную запись администратора';
                     bootstrapSection.classList.remove('hidden');
                     loginSection.classList.add('hidden');
+                    renderDiagnostics(status.data.diagnostics);
                 } else {
                     bootstrapSection.classList.add('hidden');
                     loginSection.classList.remove('hidden');
@@ -101,6 +150,109 @@
         }
 
         detectBootstrap();
+
+        function renderDiagnostics(diagnostics) {
+            if (!diagnosticsPanel) {
+                return;
+            }
+            diagnosticsStatus.textContent = diagnostics.canBootstrap ? 'Готово к настройке' : 'Требуется внимание';
+            diagnosticsList.innerHTML = '';
+            diagnosticsWarnings.innerHTML = '';
+            diagnosticsErrors.innerHTML = '';
+
+            const items = [];
+            items.push({
+                label: 'Версия PHP',
+                value: `${diagnostics.phpVersion} ${diagnostics.phpVersionOk ? '✅' : '⚠️'}`
+            });
+            items.push({
+                label: 'Соединение с БД',
+                value: diagnostics.connectionOk ? 'установлено ✅' : 'нет соединения ❌'
+            });
+            items.push({
+                label: 'Таблица users',
+                value: diagnostics.usersTableExists ? 'найдена ✅' : 'не найдена ⚠️'
+            });
+            items.push({
+                label: 'Пользователи в базе',
+                value: diagnostics.userCount > 0 ? `${diagnostics.userCount} учетных записей` : 'не создано'
+            });
+
+            diagnostics.extensions.forEach(ext => {
+                items.push({
+                    label: `PHP ${ext.name}`,
+                    value: ext.loaded ? 'в наличии ✅' : `отсутствует ❌ — ${ext.description}`
+                });
+            });
+
+            diagnostics.directories.forEach(dir => {
+                let dirStatus = dir.exists ? 'существует' : 'не найден';
+                if (dir.exists) {
+                    dirStatus += dir.writable ? ', запись разрешена ✅' : ', только чтение ⚠️';
+                } else {
+                    dirStatus += ' ❌';
+                }
+                items.push({
+                    label: dir.description,
+                    value: dirStatus
+                });
+            });
+
+            diagnostics.config.forEach(cfg => {
+                items.push({
+                    label: `Переменная ${cfg.key}`,
+                    value: cfg.configured ? 'задана ✅' : 'не указана ⚠️'
+                });
+            });
+
+            items.forEach(item => {
+                const li = document.createElement('li');
+                li.className = 'flex justify-between gap-4';
+                li.innerHTML = `<span class="font-medium text-slate-700">${item.label}</span><span>${item.value}</span>`;
+                diagnosticsList.appendChild(li);
+            });
+
+            if (diagnostics.warnings.length) {
+                diagnostics.warnings.forEach(warning => {
+                    const p = document.createElement('p');
+                    p.textContent = `⚠️ ${warning}`;
+                    diagnosticsWarnings.appendChild(p);
+                });
+            }
+
+            if (diagnostics.errors.length) {
+                diagnostics.errors.forEach(errorText => {
+                    const p = document.createElement('p');
+                    p.textContent = `❌ ${errorText}`;
+                    diagnosticsErrors.appendChild(p);
+                });
+                bootstrapDisableNotice.textContent = 'Исправьте ошибки выше, затем обновите страницу. Создание администратора временно недоступно.';
+                bootstrapDisableNotice.classList.remove('hidden');
+                bootstrapSubmit.disabled = true;
+            } else {
+                bootstrapDisableNotice.textContent = diagnostics.canBootstrap ? '' : 'Устраните предупреждения выше перед созданием администратора.';
+                if (bootstrapDisableNotice.textContent) {
+                    bootstrapDisableNotice.classList.remove('hidden');
+                } else {
+                    bootstrapDisableNotice.classList.add('hidden');
+                }
+                bootstrapSubmit.disabled = !diagnostics.canBootstrap;
+            }
+        }
+
+        bootstrapForm.addEventListener('change', (event) => {
+            if (event.target.name === 'deployment') {
+                if (event.target.value === 'other') {
+                    deploymentOtherInput.classList.remove('hidden');
+                    deploymentOtherInput.required = true;
+                    deploymentOtherInput.focus();
+                } else {
+                    deploymentOtherInput.classList.add('hidden');
+                    deploymentOtherInput.required = false;
+                    deploymentOtherInput.value = '';
+                }
+            }
+        });
 
         if (bootstrapForm) {
             bootstrapForm.addEventListener('submit', async (event) => {
@@ -117,12 +269,27 @@
 
                 try {
                     const csrfToken = await apiClient.getCsrfToken();
+                    const deploymentChoice = bootstrapForm.querySelector('input[name="deployment"]:checked');
+                    let deploymentValue = '';
+                    if (deploymentChoice) {
+                        if (deploymentChoice.value === 'other') {
+                            deploymentValue = deploymentOtherInput.value.trim();
+                        } else {
+                            deploymentValue = deploymentChoice.value;
+                        }
+                    }
+                    if (!deploymentValue) {
+                        bootstrapMessage.textContent = 'Выберите или опишите окружение развёртывания';
+                        bootstrapMessage.className = 'text-sm text-center text-red-600';
+                        return;
+                    }
                     const response = await apiClient.post('/auth.php', 'bootstrap-admin', {
                         fio: bootstrapForm.bootstrapFio.value.trim(),
                         position: bootstrapForm.bootstrapPosition.value.trim(),
                         department: bootstrapForm.bootstrapDepartment.value.trim(),
                         login: bootstrapForm.bootstrapLogin.value.trim(),
-                        password
+                        password,
+                        deployment: deploymentValue
                     }, csrfToken);
 
                     if (response.ok) {
