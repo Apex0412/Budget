@@ -80,9 +80,12 @@ sudo systemctl restart apache2
 - **ZIP-архив:**
   ```powershell
   Invoke-WebRequest https://github.com/Apex0412/Budget/archive/refs/heads/work.zip -OutFile work.zip
-  Expand-Archive work.zip -DestinationPath C:\xampp\htdocs\finanses
+  Expand-Archive work.zip -DestinationPath C:\xampp\htdocs\Budget-work
+  Move-Item C:\xampp\htdocs\Budget-work\Budget-work\finanses C:\xampp\htdocs\finanses -Force
+  Remove-Item work.zip
+  Remove-Item C:\xampp\htdocs\Budget-work -Recurse -Force
   ```
-  Убедитесь, что структура `finanses/public`, `finanses/src`, `finanses/vendor` сохранена.
+  *Подсказка:* архив распаковывается в подпапку `Budget-work`. После перемещения убедитесь, что структура `finanses/public`, `finanses/src`, `finanses/vendor` сохранена.
 
 **Шаг 4.** Установите [Composer for Windows](https://getcomposer.org/download/). После установки проверьте:
 ```powershell
@@ -255,26 +258,31 @@ docker exec -i $(docker compose ps -q db) mysql -u root -proot finanses < schema
 #### Docker на Windows (PowerShell, автоматический запуск)
 Если не хотите вводить команды по одной, используйте готовый скрипт.
 
-1. Откройте **PowerShell от имени администратора** и перейдите в корень проекта (папка, где лежит `docker-compose.yml`).
-2. Разрешите выполнение локальных скриптов (нужно один раз):
+1. Откройте **PowerShell от имени администратора** и перейдите в корень репозитория (`C:\...\Budget`).
+2. Временно разрешите выполнение скриптов только для этой сессии (без изменения глобальной политики):
    ```powershell
-   Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+   Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
    ```
+   > Нужно постоянное разрешение? Используйте `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`.
 3. Запустите сценарий автоматической сборки и запуска контейнеров:
    ```powershell
    .\finanses\scripts\windows\docker-up.ps1
    ```
-   Скрипт последовательно выполнит `docker compose down`, `build`, `up -d`, а затем запустит установку зависимостей и миграции внутри контейнера. В конце появится сообщение с адресом `http://localhost:8080`.
-4. Чтобы остановить окружение, выполните:
+   Скрипт сам определит, доступен ли `docker compose` или `docker-compose`, выполнит `down`, `build`, `up -d`, затем внутри контейнера запустит `composer install`, `php database/cli.php migrate`, `php database/cli.php seed` и покажет ссылку `http://localhost:8080`.
+4. Нужно пересобрать образ без кеша? Добавьте флаг:
+   ```powershell
+   .\finanses\scripts\windows\docker-up.ps1 -NoCache
+   ```
+5. Остановка стека:
    ```powershell
    docker compose down
    ```
 
-> 💡 Если проект находится в другой директории, передайте путь явно:
+> 💡 Проект лежит в другом каталоге? Передайте путь до директории с `docker-compose.yml` (`...\Budget\finanses`):
 > ```powershell
 > .\finanses\scripts\windows\docker-up.ps1 -ProjectPath "D:\\projects\\Budget\\finanses"
 > ```
-> Скрипт проверит наличие Docker Desktop и подскажет, если контейнеры не стартовали.
+> Скрипт проверит наличие Docker Desktop, сообщит, если команда compose недоступна, и не продолжит выполнение при ошибке.
 
 ---
 
