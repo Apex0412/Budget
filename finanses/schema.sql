@@ -21,8 +21,12 @@ CREATE TABLE IF NOT EXISTS requests (
   updated_at TIMESTAMP NULL,
   status ENUM('draft','submitted','returned','approved','rejected','in_progress','purchased') NOT NULL DEFAULT 'submitted',
   justification TEXT NOT NULL,
+  basis TEXT DEFAULT 'Муниципальное задание и Правила благоустройства',
+  service_objects TEXT DEFAULT NULL,
+  period_label VARCHAR(255) DEFAULT NULL,
   priority ENUM('normal','urgent','critical') NOT NULL DEFAULT 'normal',
   deadline_date DATE DEFAULT NULL,
+  pdf_generated TINYINT(1) NOT NULL DEFAULT 0,
   FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -33,6 +37,12 @@ CREATE TABLE IF NOT EXISTS request_items (
   item_name VARCHAR(255) NOT NULL,
   unit VARCHAR(64) NOT NULL,
   qty DECIMAL(12,2) NOT NULL,
+  purpose VARCHAR(255) DEFAULT NULL,
+  features VARCHAR(255) DEFAULT NULL,
+  stock_qty DECIMAL(12,2) DEFAULT NULL,
+  need_qty DECIMAL(12,2) DEFAULT NULL,
+  purchase_qty DECIMAL(12,2) DEFAULT NULL,
+  distribution JSON DEFAULT NULL,
   note VARCHAR(500) DEFAULT NULL,
   FOREIGN KEY (request_id) REFERENCES requests(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

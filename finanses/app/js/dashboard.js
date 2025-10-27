@@ -26,15 +26,20 @@ const statuses = {
     purchased: 'Закуплено'
 };
 
+const DEFAULT_BASIS = 'Основание: муниципальное задание и "Правила благоустройства территории муниципального образования «Городской округ Серпухов Московской области»", утверждённые решением Совета депутатов от 24.12.2024 № 25/288.';
+
 function serializeItems(tableBody) {
     const rows = Array.from(tableBody.querySelectorAll('tr'));
     return rows.map((row) => {
         const item = {};
-        row.querySelectorAll('input').forEach((input) => {
-            if (input.name === 'qty') {
-                item[input.name] = parseFloat(input.value);
+        row.querySelectorAll('input, textarea').forEach((field) => {
+            const { name } = field;
+            if (!name) return;
+            if (field.type === 'number') {
+                const value = field.value;
+                item[name] = value !== '' ? parseFloat(value) : null;
             } else {
-                item[input.name] = input.value.trim();
+                item[name] = field.value.trim();
             }
         });
         return item;
@@ -47,6 +52,9 @@ function resetForm() {
     state.attachments = [];
     state.pendingFiles = [];
     document.getElementById('requestForm').reset();
+    document.getElementById('basis').value = DEFAULT_BASIS;
+    document.getElementById('serviceObjects').value = '';
+    document.getElementById('periodLabel').value = '';
     document.getElementById('attachmentInput').value = '';
     renderAttachmentList();
     const body = document.getElementById('itemsBody');
@@ -60,6 +68,8 @@ function applyMaterialToRow(row, material) {
     const categoryInput = row.querySelector('input[name="category"]');
     const unitInput = row.querySelector('input[name="unit"]');
     const noteInput = row.querySelector('input[name="note"]');
+    const purposeArea = row.querySelector('textarea[name="purpose"]');
+    const featuresArea = row.querySelector('textarea[name="features"]');
     if (material.category_name) {
         categoryInput.value = material.category_name;
     }
@@ -67,8 +77,16 @@ function applyMaterialToRow(row, material) {
         unitInput.value = material.unit_name;
         unitInput.dataset.autofill = 'material';
     }
-    if (material.description && !noteInput.value) {
-        noteInput.value = material.description;
+    if (material.description) {
+        if (featuresArea && !featuresArea.value) {
+            featuresArea.value = material.description;
+        }
+        if (noteInput && !noteInput.value) {
+            noteInput.value = material.description;
+        }
+        if (purposeArea && !purposeArea.value) {
+            purposeArea.value = material.category_name || '';
+        }
     }
     row.dataset.materialId = String(material.id);
 }
@@ -136,10 +154,28 @@ function addItemRow(data = {}) {
     const clone = template.content.cloneNode(true);
     const row = clone.querySelector('tr');
 
-    row.querySelectorAll('input').forEach((input) => {
-        if (Object.prototype.hasOwnProperty.call(data, input.name)) {
-            input.value = data[input.name];
+    row.querySelectorAll('input, textarea').forEach((field) => {
+        const { name } = field;
+        if (!name) return;
+        let value = null;
+        if (name === 'distribution' && Array.isArray(data.distribution)) {
+            value = data.distribution
+                .map((item) => {
+                    const dept = item.department || '';
+                    const qty = item.qty !== null && item.qty !== undefined && item.qty !== ''
+                        ? String(item.qty)
+                        : '';
+                    return qty ? `${dept}: ${qty}`.trim() : dept;
+                })
+                .filter(Boolean)
+                .join('\n');
+        } else if (Object.prototype.hasOwnProperty.call(data, name)) {
+            value = data[name];
         }
+        if (value === null || value === undefined) {
+            value = '';
+        }
+        field.value = value;
     });
 
     row.querySelector('.removeItem').addEventListener('click', () => {
@@ -229,11 +265,53 @@ function collectFormData() {
     }
     const priority = document.getElementById('priority').value;
     const deadline = document.getElementById('deadline').value || null;
-    const items = serializeItems(document.getElementById('itemsBody'));
+    const basis = document.getElementById('basis').value.trim() || DEFAULT_BASIS;
+    const periodLabel = document.getElementById('periodLabel').value.trim();
+    const serviceObjects = document.getElementById('serviceObjects').value.trim();
+    const items = serializeItems(document.getElementById('itemsBody')).map((item, index) => {
+        if (!item.category) {
+            throw new Error(`Заполните категорию для позиции №${index + 1}`);
+        }
+        if (!item.item_name) {
+            throw new Error(`Заполните наименование для позиции №${index + 1}`);
+        }
+        if (!item.unit) {
+            throw new Error(`Укажите единицу измерения для позиции №${index + 1}`);
+        }
+        if (!item.qty || Number.isNaN(item.qty) || item.qty <= 0) {
+            throw new Error(`Количество в позиции №${index + 1} должно быть больше 0`);
+        }
+        item.qty = parseFloat(item.qty);
+        ['stock_qty', 'need_qty'].forEach((field) => {
+            if (item[field] === null || item[field] === '' || item[field] === undefined) {
+                item[field] = null;
+                return;
+            }
+            if (Number.isNaN(item[field])) {
+                throw new Error(`Поле «${field === 'stock_qty' ? 'Остаток' : 'Потребность'}» в позиции №${index + 1} заполнено некорректно`);
+            }
+            if (item[field] < 0) {
+                throw new Error(`Поле «${field === 'stock_qty' ? 'Остаток' : 'Потребность'}» не может быть отрицательным (позиция №${index + 1})`);
+            }
+            item[field] = parseFloat(item[field]);
+        });
+        if (!item.note && item.features) {
+            item.note = item.features;
+        }
+        return item;
+    });
     if (!items.length) {
         throw new Error('Добавьте хотя бы одну позицию');
     }
-    return { justification, priority, deadline_date: deadline, items };
+    return {
+        justification,
+        priority,
+        deadline_date: deadline,
+        basis,
+        period_label: periodLabel || null,
+        service_objects: serviceObjects,
+        items
+    };
 }
 
 async function fetchRequest(id) {
@@ -426,6 +504,9 @@ async function openRequestForEdit(id) {
     document.getElementById('justification').value = data.request.justification;
     document.getElementById('priority').value = data.request.priority;
     document.getElementById('deadline').value = data.request.deadline_date || '';
+    document.getElementById('basis').value = (data.request.basis || '').trim() || DEFAULT_BASIS;
+    document.getElementById('periodLabel').value = data.request.period_label || '';
+    document.getElementById('serviceObjects').value = data.request.service_objects || '';
     const body = document.getElementById('itemsBody');
     body.innerHTML = '';
     data.items.forEach((item) => addItemRow(item));
@@ -450,6 +531,9 @@ async function repeatLastRequest() {
     document.getElementById('justification').value = latestTemplate.request.justification;
     document.getElementById('priority').value = latestTemplate.request.priority;
     document.getElementById('deadline').value = latestTemplate.request.deadline_date || '';
+    document.getElementById('basis').value = (latestTemplate.request.basis || '').trim() || DEFAULT_BASIS;
+    document.getElementById('serviceObjects').value = latestTemplate.request.service_objects || '';
+    document.getElementById('periodLabel').value = latestTemplate.request.period_label || '';
     const body = document.getElementById('itemsBody');
     body.innerHTML = '';
     latestTemplate.items.forEach((item) => addItemRow(item));
@@ -466,9 +550,32 @@ function applyTemplate() {
         justification: 'Прошу обеспечить подразделение комплектами спецодежды и инструментом для выполнения плановых работ.',
         priority: 'urgent',
         deadline_date: '',
+        basis: DEFAULT_BASIS,
+        period_label: '',
+        service_objects: '',
         items: [
-            { category: 'Спецодежда', item_name: 'Куртка утеплённая зимняя', unit: 'шт.', qty: 20, note: 'Для бригад дорожного участка' },
-            { category: 'Инструмент', item_name: 'Отбойный молоток электрический', unit: 'шт.', qty: 2, note: 'Замена изношенного инструмента' }
+            {
+                category: 'Спецодежда',
+                item_name: 'Куртка утеплённая зимняя',
+                unit: 'шт.',
+                qty: 20,
+                purpose: 'Выдача сотрудникам дорожных бригад',
+                features: 'Комплект с утеплителем до -30°C',
+                stock_qty: 5,
+                need_qty: 25,
+                note: 'Для бригад дорожного участка'
+            },
+            {
+                category: 'Инструмент',
+                item_name: 'Отбойный молоток электрический',
+                unit: 'шт.',
+                qty: 2,
+                purpose: 'Ремонт асфальтового покрытия',
+                features: 'Мощность 1700 Вт',
+                stock_qty: 1,
+                need_qty: 3,
+                note: 'Замена изношенного инструмента'
+            }
         ]
     };
     state.currentRequestId = null;
@@ -476,6 +583,9 @@ function applyTemplate() {
     document.getElementById('justification').value = template.justification;
     document.getElementById('priority').value = template.priority;
     document.getElementById('deadline').value = template.deadline_date;
+    document.getElementById('basis').value = template.basis;
+    document.getElementById('serviceObjects').value = template.service_objects;
+    document.getElementById('periodLabel').value = template.period_label;
     const body = document.getElementById('itemsBody');
     body.innerHTML = '';
     template.items.forEach((item) => addItemRow(item));

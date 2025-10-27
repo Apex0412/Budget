@@ -83,6 +83,53 @@ async function loadRequests(page = 1) {
     document.getElementById('adminNextPage').disabled = pagination.current_page >= pagination.total_pages;
 }
 
+async function loadPdfDocuments() {
+    const response = await apiClient.get('/requests.php?action=list&per_page=30');
+    if (!response.ok) {
+        showToast(response.error || 'Не удалось загрузить PDF-реестр', 'error');
+        return;
+    }
+    const rows = response.data.items.map((item) => {
+        const pdfBadge = item.pdf_generated
+            ? '<span class="inline-flex items-center px-2 py-1 rounded-full bg-emerald-100 text-emerald-700 text-xs font-medium">Сформирован</span>'
+            : '<span class="inline-flex items-center px-2 py-1 rounded-full bg-slate-100 text-slate-500 text-xs font-medium">Не сформирован</span>';
+        return {
+            id: item.id,
+            cells: [
+                { html: `<span class="font-medium">${item.id}</span>` },
+                { text: new Date(item.created_at).toLocaleString('ru-RU') },
+                { html: `<div class="space-y-1"><div class="font-medium text-slate-700">${item.author_fio}</div><div class="text-xs text-slate-400">${item.author_department || '—'}</div></div>` },
+                { html: renderPriorityBadge(item.priority) },
+                { html: renderStatusBadge(item.status) },
+                { html: pdfBadge },
+                {
+                    html: `
+                        <div class="flex justify-end space-x-2 text-sm">
+                            <button data-action="pdf-generate" data-id="${item.id}" class="text-blue-600 hover:text-blue-800">Сформировать</button>
+                            <button data-action="pdf-download" data-id="${item.id}" class="text-emerald-600 hover:text-emerald-800">Скачать</button>
+                        </div>`
+                }
+            ]
+        };
+    });
+
+    renderTableRows(document.getElementById('pdfBody'), rows);
+}
+
+async function regeneratePdf(requestId) {
+    try {
+        const response = await fetch(`../api/files.php?action=pdf&id=${requestId}`, { credentials: 'include' });
+        if (!response.ok) {
+            throw new Error('Сервер вернул ошибку при генерации PDF');
+        }
+        await response.blob();
+        showToast('PDF сформирован', 'success');
+        await loadPdfDocuments();
+    } catch (error) {
+        showToast(error.message || 'Не удалось сформировать PDF', 'error');
+    }
+}
+
 async function updateStatus(id, status) {
     const csrfToken = await apiClient.getCsrfToken();
     const response = await apiClient.post('/requests.php', 'status', { id, status }, csrfToken);
@@ -492,6 +539,23 @@ async function loadStatistics() {
             }
         });
     }
+
+    const missingList = document.getElementById('missingUsers');
+    if (missingList) {
+        missingList.innerHTML = '';
+        if (!data.missing || !data.missing.length) {
+            const li = document.createElement('li');
+            li.className = 'text-xs text-slate-400';
+            li.textContent = 'Все активные пользователи уже подали заявки.';
+            missingList.appendChild(li);
+        } else {
+            data.missing.forEach((user) => {
+                const li = document.createElement('li');
+                li.innerHTML = `<div class="flex items-center justify-between"><span>${user.fio}</span><span class="text-xs text-slate-400">${user.department || 'Подразделение не указано'}</span></div>`;
+                missingList.appendChild(li);
+            });
+        }
+    }
     statsLoaded = true;
 }
 
@@ -531,6 +595,9 @@ function initTabs() {
             }
             if (target === 'audit') {
                 await loadAuditLog();
+            }
+            if (target === 'pdf') {
+                await loadPdfDocuments();
             }
         });
     });
@@ -574,6 +641,27 @@ export async function initAdminPanel() {
 
     document.getElementById('exportCsvBtn').addEventListener('click', () => exportFile('csv'));
     document.getElementById('exportXlsxBtn').addEventListener('click', () => exportFile('xlsx'));
+
+    const refreshPdfBtn = document.getElementById('refreshPdfBtn');
+    if (refreshPdfBtn) {
+        refreshPdfBtn.addEventListener('click', () => loadPdfDocuments());
+    }
+
+    const pdfTable = document.getElementById('pdfTable');
+    if (pdfTable) {
+        pdfTable.addEventListener('click', async (event) => {
+            const button = event.target.closest('button[data-action]');
+            if (!button) return;
+            const id = Number(button.dataset.id);
+            if (!id) return;
+            if (button.dataset.action === 'pdf-download') {
+                window.open(`../api/files.php?action=pdf&id=${id}`, '_blank');
+            }
+            if (button.dataset.action === 'pdf-generate') {
+                await regeneratePdf(id);
+            }
+        });
+    }
 
     document.getElementById('createUserBtn').addEventListener('click', createUser);
     document.getElementById('usersBody').addEventListener('click', (event) => {
@@ -678,6 +766,6 @@ export async function initAdminPanel() {
         });
     }
 
-    await Promise.all([loadRequests(), loadUsers(), loadCatalogs(), loadMaterials()]);
+    await Promise.all([loadRequests(), loadPdfDocuments(), loadUsers(), loadCatalogs(), loadMaterials()]);
     await loadSummary();
 }

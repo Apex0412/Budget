@@ -1,11 +1,17 @@
 <?php
 require_once __DIR__ . '/bootstrap.php';
+require_once __DIR__ . '/../pdf/generator.php';
 
 $pdo = get_pdo();
 $action = $_GET['action'] ?? ($_POST['action'] ?? 'list');
 
 const REQUEST_STATUSES = ['draft','submitted','returned','approved','rejected','in_progress','purchased'];
 const REQUEST_PRIORITIES = ['normal','urgent','critical'];
+
+function default_basis(): string
+{
+    return env('PDF_BASIS_TEXT', 'Основание: муниципальное задание ' . date('Y') . ' и "Правила благоустройства территории муниципального образования «Городской округ Серпухов Московской области»", утверждённые решением Совета депутатов от 24.12.2024 № 25/288.');
+}
 
 function normalize_priority(?string $priority): string
 {
@@ -25,6 +31,89 @@ function normalize_deadline($value): ?string
     return $date->format('Y-m-d');
 }
 
+function parse_distribution($value): array
+{
+    if (is_array($value)) {
+        $result = [];
+        foreach ($value as $row) {
+            $department = isset($row['department']) ? trim((string)$row['department']) : '';
+            $qty = isset($row['qty']) && $row['qty'] !== '' ? (float)$row['qty'] : null;
+            if ($department === '' && $qty === null) {
+                continue;
+            }
+            $result[] = [
+                'department' => $department,
+                'qty' => $qty
+            ];
+        }
+        return $result;
+    }
+
+    if (is_string($value)) {
+        $result = [];
+        $lines = preg_split('/\r\n|\n|\r/', $value);
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if ($line === '') {
+                continue;
+            }
+            if (str_contains($line, ':')) {
+                [$dept, $qty] = array_map('trim', explode(':', $line, 2));
+                $result[] = [
+                    'department' => $dept,
+                    'qty' => $qty !== '' ? (float)str_replace(',', '.', $qty) : null
+                ];
+            } else {
+                $result[] = [
+                    'department' => $line,
+                    'qty' => null
+                ];
+            }
+        }
+        return $result;
+    }
+
+    return [];
+}
+
+function encode_distribution(array $rows): ?string
+{
+    if (!$rows) {
+        return null;
+    }
+    $prepared = [];
+    foreach ($rows as $row) {
+        $prepared[] = [
+            'department' => trim((string)($row['department'] ?? '')),
+            'qty' => isset($row['qty']) && $row['qty'] !== '' ? (float)$row['qty'] : null
+        ];
+    }
+    return json_encode($prepared, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+}
+
+function map_item_row(array $row): array
+{
+    if (!empty($row['distribution'])) {
+        $decoded = json_decode($row['distribution'], true);
+        $row['distribution'] = is_array($decoded) ? $decoded : [];
+    } else {
+        $row['distribution'] = [];
+    }
+    foreach (['stock_qty', 'need_qty', 'purchase_qty', 'qty'] as $numeric) {
+        if ($row[$numeric] !== null) {
+            $row[$numeric] = (float)$row[$numeric];
+        }
+    }
+    return $row;
+}
+
+function fetch_request_items(PDO $pdo, int $id): array
+{
+    $stmt = $pdo->prepare('SELECT * FROM request_items WHERE request_id = :id ORDER BY id');
+    $stmt->execute([':id' => $id]);
+    return array_map('map_item_row', $stmt->fetchAll());
+}
+
 function sanitize_items($items): array
 {
     if (!is_array($items) || !$items) {
@@ -40,11 +129,24 @@ function sanitize_items($items): array
         if ($category === '' || $itemName === '' || $unit === '' || $qty <= 0) {
             throw new InvalidArgumentException('Некорректные данные позиции');
         }
+        $purpose = trim((string)($item['purpose'] ?? '')) ?: null;
+        $features = trim((string)($item['features'] ?? '')) ?: null;
+        $stockQty = isset($item['stock_qty']) && $item['stock_qty'] !== '' ? max(0, (float)$item['stock_qty']) : null;
+        $needQty = isset($item['need_qty']) && $item['need_qty'] !== '' ? max(0, (float)$item['need_qty']) : null;
+        $purchaseQty = isset($item['purchase_qty']) && $item['purchase_qty'] !== '' ? max(0, (float)$item['purchase_qty']) : $qty;
+        $distribution = encode_distribution(parse_distribution($item['distribution'] ?? []));
+
         $prepared[] = [
             'category' => $category,
             'item_name' => $itemName,
             'unit' => $unit,
             'qty' => $qty,
+            'purpose' => $purpose,
+            'features' => $features,
+            'stock_qty' => $stockQty,
+            'need_qty' => $needQty,
+            'purchase_qty' => $purchaseQty,
+            'distribution' => $distribution,
             'note' => $note
         ];
     }
@@ -101,7 +203,7 @@ switch ($action) {
         ensure_method('GET');
         $user = require_auth();
         $page = max(1, (int)($_GET['page'] ?? 1));
-        $perPage = 10;
+        $perPage = min(50, max(5, (int)($_GET['per_page'] ?? 10)));
         $offset = ($page - 1) * $perPage;
 
         $conditions = [];
@@ -191,11 +293,9 @@ switch ($action) {
         if ($user['role'] !== 'admin' && $request['author_id'] != $user['id']) {
             fail('Нет доступа', 403);
         }
-        $itemsStmt = $pdo->prepare('SELECT * FROM request_items WHERE request_id = :id');
-        $itemsStmt->execute([':id' => $id]);
         ok([
             'request' => $request,
-            'items' => $itemsStmt->fetchAll(),
+            'items' => fetch_request_items($pdo, $id),
             'attachments' => fetch_attachments($pdo, $id)
         ]);
         break;
@@ -211,11 +311,9 @@ switch ($action) {
             break;
         }
         $request = fetch_request($pdo, $id);
-        $itemsStmt = $pdo->prepare('SELECT * FROM request_items WHERE request_id = :id');
-        $itemsStmt->execute([':id' => $id]);
         ok([
             'request' => $request,
-            'items' => $itemsStmt->fetchAll(),
+            'items' => fetch_request_items($pdo, $id),
             'attachments' => fetch_attachments($pdo, $id)
         ]);
         break;
@@ -229,6 +327,9 @@ switch ($action) {
         if ($justification === '') {
             fail('Обоснование обязательно');
         }
+        $basis = trim((string)($payload['basis'] ?? '')) ?: default_basis();
+        $serviceObjects = trim((string)($payload['service_objects'] ?? '')) ?: null;
+        $periodLabel = trim((string)($payload['period_label'] ?? '')) ?: null;
         try {
             $items = sanitize_items($payload['items'] ?? []);
             $priority = normalize_priority($payload['priority'] ?? null);
@@ -241,17 +342,20 @@ switch ($action) {
 
         $pdo->beginTransaction();
         try {
-            $stmt = $pdo->prepare('INSERT INTO requests (author_id, justification, status, priority, deadline_date) VALUES (:author_id, :justification, :status, :priority, :deadline)');
+            $stmt = $pdo->prepare('INSERT INTO requests (author_id, justification, basis, service_objects, period_label, status, priority, deadline_date, pdf_generated) VALUES (:author_id, :justification, :basis, :service_objects, :period_label, :status, :priority, :deadline, 0)');
             $stmt->execute([
                 ':author_id' => $user['id'],
                 ':justification' => $justification,
+                ':basis' => $basis,
+                ':service_objects' => $serviceObjects,
+                ':period_label' => $periodLabel,
                 ':status' => $status,
                 ':priority' => $priority,
                 ':deadline' => $deadline
             ]);
             $requestId = (int)$pdo->lastInsertId();
 
-            $itemStmt = $pdo->prepare('INSERT INTO request_items (request_id, category, item_name, unit, qty, note) VALUES (:request_id, :category, :item_name, :unit, :qty, :note)');
+            $itemStmt = $pdo->prepare('INSERT INTO request_items (request_id, category, item_name, unit, qty, purpose, features, stock_qty, need_qty, purchase_qty, distribution, note) VALUES (:request_id, :category, :item_name, :unit, :qty, :purpose, :features, :stock_qty, :need_qty, :purchase_qty, :distribution, :note)');
             foreach ($items as $item) {
                 $itemStmt->execute([
                     ':request_id' => $requestId,
@@ -259,11 +363,17 @@ switch ($action) {
                     ':item_name' => $item['item_name'],
                     ':unit' => $item['unit'],
                     ':qty' => $item['qty'],
+                    ':purpose' => $item['purpose'],
+                    ':features' => $item['features'],
+                    ':stock_qty' => $item['stock_qty'],
+                    ':need_qty' => $item['need_qty'],
+                    ':purchase_qty' => $item['purchase_qty'],
+                    ':distribution' => $item['distribution'],
                     ':note' => $item['note']
                 ]);
             }
 
-            log_action($pdo, 'CREATE_REQUEST', 'requests', $requestId, [
+            log_action($pdo, 'create_request', 'requests', $requestId, [
                 'status' => $status,
                 'priority' => $priority
             ]);
@@ -295,6 +405,12 @@ switch ($action) {
         if ($justification === '') {
             fail('Обоснование обязательно');
         }
+        $basis = trim((string)($payload['basis'] ?? ($request['basis'] ?? '')));
+        $basis = $basis !== '' ? $basis : default_basis();
+        $serviceObjects = trim((string)($payload['service_objects'] ?? ($request['service_objects'] ?? '')));
+        $serviceObjects = $serviceObjects !== '' ? $serviceObjects : null;
+        $periodLabel = trim((string)($payload['period_label'] ?? ($request['period_label'] ?? '')));
+        $periodLabel = $periodLabel !== '' ? $periodLabel : null;
         try {
             $items = sanitize_items($payload['items'] ?? []);
             $priority = normalize_priority($payload['priority'] ?? $request['priority']);
@@ -307,9 +423,12 @@ switch ($action) {
 
         $pdo->beginTransaction();
         try {
-            $stmt = $pdo->prepare('UPDATE requests SET justification = :justification, status = :status, priority = :priority, deadline_date = :deadline, updated_at = NOW() WHERE id = :id');
+            $stmt = $pdo->prepare('UPDATE requests SET justification = :justification, basis = :basis, service_objects = :service_objects, period_label = :period_label, status = :status, priority = :priority, deadline_date = :deadline, pdf_generated = 0, updated_at = NOW() WHERE id = :id');
             $stmt->execute([
                 ':justification' => $justification,
+                ':basis' => $basis,
+                ':service_objects' => $serviceObjects,
+                ':period_label' => $periodLabel,
                 ':status' => $status,
                 ':priority' => $priority,
                 ':deadline' => $deadline,
@@ -317,7 +436,7 @@ switch ($action) {
             ]);
 
             $pdo->prepare('DELETE FROM request_items WHERE request_id = :id')->execute([':id' => $id]);
-            $itemStmt = $pdo->prepare('INSERT INTO request_items (request_id, category, item_name, unit, qty, note) VALUES (:request_id, :category, :item_name, :unit, :qty, :note)');
+            $itemStmt = $pdo->prepare('INSERT INTO request_items (request_id, category, item_name, unit, qty, purpose, features, stock_qty, need_qty, purchase_qty, distribution, note) VALUES (:request_id, :category, :item_name, :unit, :qty, :purpose, :features, :stock_qty, :need_qty, :purchase_qty, :distribution, :note)');
             foreach ($items as $item) {
                 $itemStmt->execute([
                     ':request_id' => $id,
@@ -325,10 +444,16 @@ switch ($action) {
                     ':item_name' => $item['item_name'],
                     ':unit' => $item['unit'],
                     ':qty' => $item['qty'],
+                    ':purpose' => $item['purpose'],
+                    ':features' => $item['features'],
+                    ':stock_qty' => $item['stock_qty'],
+                    ':need_qty' => $item['need_qty'],
+                    ':purchase_qty' => $item['purchase_qty'],
+                    ':distribution' => $item['distribution'],
                     ':note' => $item['note']
                 ]);
             }
-            log_action($pdo, 'UPDATE_REQUEST', 'requests', $id, [
+            log_action($pdo, 'update_request', 'requests', $id, [
                 'status' => $status,
                 'priority' => $priority
             ]);
@@ -352,7 +477,15 @@ switch ($action) {
         }
         $stmt = $pdo->prepare('UPDATE requests SET status = :status, updated_at = NOW() WHERE id = :id');
         $stmt->execute([':status' => $status, ':id' => $id]);
-        log_action($pdo, 'UPDATE_STATUS', 'requests', $id, ['status' => $status]);
+        log_action($pdo, 'update_status', 'requests', $id, ['status' => $status]);
+        if ($status === 'approved') {
+            try {
+                generate_request_pdf_file($pdo, $id, true);
+                log_action($pdo, 'approve_request', 'requests', $id);
+            } catch (Throwable $e) {
+                fail('Статус обновлён, но PDF не сформирован: ' . $e->getMessage(), 500);
+            }
+        }
         ok(true);
         break;
 

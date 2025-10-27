@@ -1,24 +1,9 @@
 <?php
 require_once __DIR__ . '/bootstrap.php';
-require_once __DIR__ . '/../pdf/template_request.php';
+require_once __DIR__ . '/../pdf/generator.php';
 
 $pdo = get_pdo();
 $action = $_GET['action'] ?? 'pdf';
-
-function fetch_request_bundle(PDO $pdo, int $id): array
-{
-    $stmt = $pdo->prepare('SELECT r.*, u.fio AS author_fio, u.position AS author_position, u.department AS author_department FROM requests r JOIN users u ON u.id = r.author_id WHERE r.id = :id');
-    $stmt->execute([':id' => $id]);
-    $request = $stmt->fetch();
-    if (!$request) {
-        fail('Заявка не найдена', 404);
-    }
-    $itemsStmt = $pdo->prepare('SELECT * FROM request_items WHERE request_id = :id');
-    $itemsStmt->execute([':id' => $id]);
-    $filesStmt = $pdo->prepare('SELECT id, original_name, stored_name, mime_type, size, created_at FROM request_files WHERE request_id = :id ORDER BY created_at');
-    $filesStmt->execute([':id' => $id]);
-    return [$request, $itemsStmt->fetchAll(), $filesStmt->fetchAll()];
-}
 
 function ensure_upload_path(): string
 {
@@ -43,44 +28,25 @@ switch ($action) {
         if ($id <= 0) {
             fail('Некорректный идентификатор');
         }
-        [$request, $items, $attachments] = fetch_request_bundle($pdo, $id);
-        if ($user['role'] !== 'admin' && $request['author_id'] != $user['id']) {
+        $stmt = $pdo->prepare('SELECT author_id FROM requests WHERE id = :id');
+        $stmt->execute([':id' => $id]);
+        $ownerId = $stmt->fetchColumn();
+        if (!$ownerId) {
+            fail('Заявка не найдена', 404);
+        }
+        if ($user['role'] !== 'admin' && (int)$ownerId !== (int)$user['id']) {
             fail('Нет доступа', 403);
         }
-        $cacheFile = __DIR__ . '/../pdf/' . $id . '.pdf';
-        $shouldRegenerate = !file_exists($cacheFile);
-        if (!$shouldRegenerate) {
-            $updatedAt = $request['updated_at'] ?? $request['created_at'];
-            if ($updatedAt && @filemtime($cacheFile) < strtotime($updatedAt)) {
-                $shouldRegenerate = true;
-            }
-            if (!$shouldRegenerate) {
-                $attachmentsHash = md5(json_encode(array_column($attachments, 'id')));
-                $hashFile = $cacheFile . '.hash';
-                $storedHash = is_file($hashFile) ? trim((string)file_get_contents($hashFile)) : '';
-                if ($attachmentsHash !== $storedHash) {
-                    $shouldRegenerate = true;
-                }
-            }
+        try {
+            $pdfPath = generate_request_pdf_file($pdo, $id, true);
+        } catch (Throwable $e) {
+            fail('Ошибка генерации PDF: ' . $e->getMessage(), 500);
         }
-        if ($shouldRegenerate) {
-            if (!class_exists('TCPDF')) {
-                fail('Библиотека TCPDF не установлена', 500);
-            }
-            $pdf = new TCPDF();
-            render_request_pdf($pdf, [
-                'request' => $request,
-                'items' => $items,
-                'attachments' => $attachments
-            ]);
-            $pdf->Output($cacheFile, 'F');
-            file_put_contents($cacheFile . '.hash', md5(json_encode(array_column($attachments, 'id'))));
-        }
-        log_action($pdo, 'DOWNLOAD_PDF', 'requests', $id);
+        log_action($pdo, 'download_pdf', 'requests', $id);
         header('Content-Type: application/pdf');
         header('Content-Disposition: attachment; filename="request_' . $id . '.pdf"');
-        header('Content-Length: ' . filesize($cacheFile));
-        readfile($cacheFile);
+        header('Content-Length: ' . filesize($pdfPath));
+        readfile($pdfPath);
         exit;
 
     case 'attachment':
