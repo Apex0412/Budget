@@ -1,16 +1,17 @@
 <?php
 require_once __DIR__ . '/../../bootstrap.php';
+
+use Finanses\Helpers;
+
 if (empty($_SESSION['user'])) {
-    header('Location: /finanses/public/login.php');
-    exit;
+    Helpers::redirect(Helpers::asset('login.php'));
 }
 $id = (int)($_GET['id'] ?? 0);
 if (!$id) {
-    header('Location: /finanses/public/requests/list.php');
-    exit;
+    Helpers::redirect(Helpers::asset('requests/list.php'));
 }
 $title = 'Редактирование заявки';
-$csrf = Finanses\Helpers::csrfToken();
+$csrf = Helpers::csrfToken();
 ob_start();
 ?>
 <h1 class="h3 mb-4">Редактирование заявки №<?= $id ?></h1>
@@ -74,7 +75,7 @@ ob_start();
         </div>
     </form>
 </div>
-<script src="/finanses/public/js/request-edit.js"></script>
+<script src="<?= htmlspecialchars(Helpers::asset('js/request-edit.js')) ?>"></script>
 <?php
 $content = ob_get_clean();
 include __DIR__ . '/../../views/layout.php';

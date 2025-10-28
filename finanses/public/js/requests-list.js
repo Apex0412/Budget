@@ -2,11 +2,13 @@ const filtersForm = document.getElementById('requestFilters');
 const tableBody = document.querySelector('#requestsTable tbody');
 const pagination = document.getElementById('requestsPagination');
 const totalLabel = document.getElementById('requestsTotal');
+const BASE_PATH = window.APP_BASE_PATH || '';
+const API_BASE = window.APP_API_BASE || (BASE_PATH + '/api');
 
 async function loadRequests(page = 1) {
     const params = new URLSearchParams(new FormData(filtersForm));
     params.set('page', page);
-    const response = await fetch('/finanses/public/api/requests.php?' + params.toString());
+    const response = await fetch(`${API_BASE}/requests.php?${params.toString()}`);
     const data = await response.json();
     if (!data.ok) throw data.error;
     const { items, pagination: meta } = data.data;
@@ -22,8 +24,8 @@ async function loadRequests(page = 1) {
             <td>${window.App.badgePriority(item.priority)}</td>
             <td>${item.items_count}</td>
             <td class="text-end">
-                <a href="/finanses/public/requests/edit.php?id=${item.id}" class="btn btn-sm btn-outline-primary">Редактировать</a>
-                <a href="/finanses/public/api/files.php?pdf=${item.id}" target="_blank" class="btn btn-sm btn-outline-secondary">PDF</a>
+                <a href="${(BASE_PATH || '') + '/requests/edit.php?id=' + item.id}" class="btn btn-sm btn-outline-primary">Редактировать</a>
+                <a href="${API_BASE + '/files.php?pdf=' + item.id}" target="_blank" class="btn btn-sm btn-outline-secondary">PDF</a>
             </td>`;
         tableBody.appendChild(tr);
     });

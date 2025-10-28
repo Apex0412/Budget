@@ -3,6 +3,8 @@ const materialsTable = document.querySelector('#materialsTable tbody');
 const materialModal = document.getElementById('materialModal');
 const materialForm = document.getElementById('materialForm');
 const canManage = !!materialForm;
+const BASE_PATH = window.APP_BASE_PATH || '';
+const API_BASE = window.APP_API_BASE || (BASE_PATH + '/api');
 
 let metaLoaded = false;
 
@@ -11,7 +13,7 @@ async function loadMaterials() {
     if (!metaLoaded) {
         params.set('meta', '1');
     }
-    const response = await fetch('/finanses/public/api/materials.php?' + params.toString());
+    const response = await fetch(`${API_BASE}/materials.php?${params.toString()}`);
     const data = await response.json();
     if (!data.ok) throw data.error;
     materialsTable.innerHTML = '';
@@ -80,8 +82,8 @@ if (canManage) {
         const payload = Object.fromEntries(new FormData(materialForm).entries());
         payload.is_active = materialForm.elements['is_active'].checked ? 1 : 0;
         const method = payload.id ? 'PUT' : 'POST';
-        const url = payload.id ? `/finanses/public/api/materials.php?id=${payload.id}` : '/finanses/public/api/materials.php';
-        const data = await window.App.request(url, {
+        const endpoint = payload.id ? `materials.php?id=${payload.id}` : 'materials.php';
+        await window.App.request(endpoint, {
             method,
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),

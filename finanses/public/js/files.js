@@ -1,16 +1,18 @@
 const filesForm = document.getElementById('filesForm');
 const filesTable = document.querySelector('#filesTable tbody');
+const BASE_PATH = window.APP_BASE_PATH || '';
+const API_BASE = window.APP_API_BASE || (BASE_PATH + '/api');
 
 async function loadFiles(requestId) {
     if (!requestId) return;
-    const response = await fetch(`/finanses/public/api/files.php?request_id=${requestId}`);
+    const response = await fetch(`${API_BASE}/files.php?request_id=${requestId}`);
     const data = await response.json();
     if (!data.ok) throw data.error;
     filesTable.innerHTML = '';
     data.data.forEach((file) => {
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td><a href="/finanses/public/api/files.php?pdf=${requestId}" target="_blank">${file.original_name}</a></td>
+            <td><a href="${API_BASE}/files.php?pdf=${requestId}" target="_blank">${file.original_name}</a></td>
             <td>${file.mime_type}</td>
             <td>${(file.size / 1024).toFixed(1)} КБ</td>
             <td>${new Date(file.created_at).toLocaleString()}</td>
@@ -24,7 +26,7 @@ filesForm?.addEventListener('submit', async (event) => {
     const formData = new FormData(filesForm);
     const requestId = formData.get('request_id');
     try {
-        const response = await fetch('/finanses/public/api/files.php', {
+        const response = await fetch(`${API_BASE}/files.php`, {
             method: 'POST',
             body: formData,
         });
@@ -44,7 +46,7 @@ filesTable?.addEventListener('click', async (event) => {
     const requestId = button.dataset.request;
     if (!confirm('Удалить файл?')) return;
     try {
-        await window.App.request(`/finanses/public/api/files.php?id=${id}`, { method: 'DELETE' });
+        await window.App.request(`files.php?id=${id}`, { method: 'DELETE' });
         window.App.toast('Файл удален', 'success');
         loadFiles(requestId).catch((error) => window.App.toast(error, 'danger'));
     } catch (error) {

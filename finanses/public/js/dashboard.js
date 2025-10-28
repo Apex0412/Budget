@@ -1,6 +1,7 @@
 (async function () {
+    const API_BASE = window.APP_API_BASE || ((window.APP_BASE_PATH || '') + '/api');
     try {
-        const response = await fetch('/finanses/public/api/requests.php');
+        const response = await fetch(`${API_BASE}/requests.php`);
         const data = await response.json();
         if (!data.ok) throw data.error;
         const items = data.data.items || [];

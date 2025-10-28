@@ -1,8 +1,10 @@
 <?php
 require_once __DIR__ . '/../../bootstrap.php';
+
+use Finanses\Helpers;
+
 if (empty($_SESSION['user']) || $_SESSION['user']['role'] !== 'admin') {
-    header('Location: /finanses/public/login.php');
-    exit;
+    Helpers::redirect(Helpers::asset('login.php'));
 }
 $title = 'Отчеты';
 ob_start();
@@ -43,7 +45,7 @@ ob_start();
     </div>
 </div>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
-<script src="/finanses/public/js/admin-reports.js"></script>
+<script src="<?= htmlspecialchars(Helpers::asset('js/admin-reports.js')) ?>"></script>
 <?php
 $content = ob_get_clean();
 include __DIR__ . '/../../views/layout.php';

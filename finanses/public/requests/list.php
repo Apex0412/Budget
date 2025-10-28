@@ -1,8 +1,10 @@
 <?php
 require_once __DIR__ . '/../../bootstrap.php';
+
+use Finanses\Helpers;
+
 if (empty($_SESSION['user'])) {
-    header('Location: /finanses/public/login.php');
-    exit;
+    Helpers::redirect(Helpers::asset('login.php'));
 }
 $title = 'Заявки';
 ob_start();
@@ -12,7 +14,7 @@ ob_start();
         <h1 class="h3">Реестр заявок</h1>
         <p class="text-body-secondary mb-0">Управление заявками и статусами</p>
     </div>
-    <a class="btn btn-primary" href="/finanses/public/requests/create.php">Новая заявка</a>
+    <a class="btn btn-primary" href="<?= htmlspecialchars(Helpers::asset('requests/create.php')) ?>">Новая заявка</a>
 </div>
 <div class="card shadow-sm">
     <div class="card-header">
@@ -73,7 +75,7 @@ ob_start();
         </nav>
     </div>
 </div>
-<script src="/finanses/public/js/requests-list.js"></script>
+<script src="<?= htmlspecialchars(Helpers::asset('js/requests-list.js')) ?>"></script>
 <?php
 $content = ob_get_clean();
 include __DIR__ . '/../../views/layout.php';

@@ -1,6 +1,7 @@
 (async function () {
+    const API_BASE = window.APP_API_BASE || ((window.APP_BASE_PATH || '') + '/api');
     try {
-        const response = await fetch('/finanses/public/api/logs.php');
+        const response = await fetch(`${API_BASE}/logs.php`);
         const data = await response.json();
         if (!data.ok) throw data.error;
         const tbody = document.querySelector('#logsTable tbody');

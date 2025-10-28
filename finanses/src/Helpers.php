@@ -4,6 +4,8 @@ namespace Finanses;
 
 class Helpers
 {
+    private static ?string $basePath = null;
+
     public static function startSession(): void
     {
         if (session_status() === PHP_SESSION_NONE) {
@@ -76,5 +78,43 @@ class Helpers
     public static function getClientIp(): string
     {
         return $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+    }
+
+    public static function basePath(): string
+    {
+        if (self::$basePath !== null) {
+            return self::$basePath;
+        }
+
+        $appUrl = Config::get('app_url', '');
+        $path = '';
+        if ($appUrl !== '') {
+            $parsed = parse_url($appUrl, PHP_URL_PATH);
+            if (is_string($parsed)) {
+                $path = rtrim($parsed, '/');
+            }
+        }
+
+        self::$basePath = $path;
+
+        return self::$basePath;
+    }
+
+    public static function asset(string $path = ''): string
+    {
+        $cleanPath = ltrim($path, '/');
+        $base = self::basePath();
+
+        if ($cleanPath === '') {
+            return $base === '' ? '/' : $base;
+        }
+
+        return ($base === '' ? '' : $base) . '/' . $cleanPath;
+    }
+
+    public static function redirect(string $path): void
+    {
+        header('Location: ' . $path, true, 302);
+        exit;
     }
 }

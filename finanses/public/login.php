@@ -1,11 +1,17 @@
 <?php
 require_once __DIR__ . '/../bootstrap.php';
+
+use Finanses\Helpers;
+
 if (!empty($_SESSION['user'])) {
-    header('Location: /finanses/public/dashboard.php');
-    exit;
+    Helpers::redirect(Helpers::asset('dashboard.php'));
 }
-$csrf = Finanses\Helpers::csrfToken();
-?><!DOCTYPE html>
+$csrf = Helpers::csrfToken();
+$basePath = Helpers::basePath();
+$apiBase = ($basePath === '' ? '' : $basePath) . '/api';
+$dashboardUrl = Helpers::asset('dashboard.php');
+?>
+<!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="utf-8">
@@ -40,7 +46,12 @@ $csrf = Finanses\Helpers::csrfToken();
         </div>
     </div>
 </div>
+<script>
+    window.APP_BASE_PATH = <?= json_encode($basePath, JSON_UNESCAPED_SLASHES) ?>;
+    window.APP_API_BASE = <?= json_encode($apiBase, JSON_UNESCAPED_SLASHES) ?>;
+    window.APP_DASHBOARD_URL = <?= json_encode($dashboardUrl, JSON_UNESCAPED_SLASHES) ?>;
+</script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-<script src="/finanses/public/js/login.js"></script>
+<script src="<?= htmlspecialchars(Helpers::asset('js/login.js')) ?>"></script>
 </body>
 </html>

@@ -1,12 +1,14 @@
 <?php
 require_once __DIR__ . '/../../bootstrap.php';
+
+use Finanses\Helpers;
+
 if (empty($_SESSION['user'])) {
-    header('Location: /finanses/public/login.php');
-    exit;
+    Helpers::redirect(Helpers::asset('login.php'));
 }
 $title = 'Материалы';
 $canManage = in_array($_SESSION['user']['role'], ['admin']);
-$csrf = Finanses\Helpers::csrfToken();
+$csrf = Helpers::csrfToken();
 ob_start();
 ?>
 <h1 class="h3 mb-4">Каталог материалов</h1>
@@ -92,7 +94,7 @@ ob_start();
     </div>
 </div>
 <?php endif; ?>
-<script src="/finanses/public/js/materials.js"></script>
+<script src="<?= htmlspecialchars(Helpers::asset('js/materials.js')) ?>"></script>
 <?php
 $content = ob_get_clean();
 include __DIR__ . '/../../views/layout.php';

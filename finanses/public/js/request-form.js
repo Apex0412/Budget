@@ -3,6 +3,9 @@ const addItemButton = document.getElementById('addItem');
 const requestForm = document.getElementById('requestForm');
 const saveDraftButton = document.getElementById('saveDraft');
 const loadTemplateButton = document.getElementById('loadTemplate');
+const BASE_PATH = window.APP_BASE_PATH || '';
+const API_BASE = window.APP_API_BASE || (BASE_PATH + '/api');
+const LIST_URL = (BASE_PATH || '') + '/requests/list.php';
 
 function createRow(item = {}) {
     const tr = document.createElement('tr');
@@ -27,7 +30,7 @@ addItemButton?.addEventListener('click', () => {
 
 loadTemplateButton?.addEventListener('click', async () => {
     try {
-        const response = await fetch('/finanses/public/api/materials.php?limit=5');
+        const response = await fetch(`${API_BASE}/materials.php?limit=5`);
         const data = await response.json();
         if (!data.ok) throw data.error;
         itemsTable.innerHTML = '';
@@ -78,13 +81,13 @@ function serializeForm(status) {
 async function submitRequest(status) {
     try {
         const payload = serializeForm(status);
-        await window.App.request('/finanses/public/api/requests.php', {
+        await window.App.request('requests.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload),
         });
         window.App.toast('Заявка сохранена', 'success');
-        window.location.href = '/finanses/public/requests/list.php';
+        window.location.href = LIST_URL;
     } catch (error) {
         window.App.toast(typeof error === 'string' ? error : 'Ошибка сохранения', 'danger');
     }

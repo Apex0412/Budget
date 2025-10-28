@@ -1,5 +1,15 @@
 window.App = (function () {
     const csrfToken = document.querySelector('input[name="csrf_token"]')?.value || '';
+    const BASE_PATH = window.APP_BASE_PATH || '';
+    const API_BASE = window.APP_API_BASE || (BASE_PATH + '/api');
+
+    function resolveUrl(endpoint) {
+        if (/^https?:/i.test(endpoint)) {
+            return endpoint;
+        }
+        const normalized = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+        return `${API_BASE}${normalized}`;
+    }
 
     function toast(message, variant = 'primary') {
         const container = document.getElementById('toastContainer');
@@ -18,7 +28,8 @@ window.App = (function () {
         toast.show();
     }
 
-    async function request(url, options = {}) {
+    async function request(endpoint, options = {}) {
+        const url = resolveUrl(endpoint);
         const response = await fetch(url, {
             headers: Object.assign({
                 'X-CSRF-TOKEN': csrfToken,
@@ -36,11 +47,12 @@ window.App = (function () {
 
     async function logout() {
         try {
-            await request('/finanses/public/api/auth.php?action=logout', { method: 'POST' });
+            await request('auth.php?action=logout', { method: 'POST' });
         } catch (e) {
             console.error(e);
         }
-        window.location.href = '/finanses/public/login.php';
+        const target = (BASE_PATH || '') + '/login.php';
+        window.location.href = target;
     }
 
     function badgeStatus(status) {
@@ -60,5 +72,5 @@ window.App = (function () {
         return `<span class="badge ${priority === 'urgent' ? 'badge-priority-urgent' : priority === 'critical' ? 'badge-priority-critical' : 'badge-priority-normal'}">${priority}</span>`;
     }
 
-    return { toast, request, logout, badgeStatus, badgePriority };
+    return { toast, request, logout, badgeStatus, badgePriority, BASE_PATH, API_BASE };
 })();

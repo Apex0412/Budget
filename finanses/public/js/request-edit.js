@@ -5,6 +5,9 @@ if (editor) {
     const itemsBody = document.querySelector('#itemsTable tbody');
     const addItemButton = document.getElementById('addItem');
     const saveDraftButton = document.getElementById('saveDraft');
+    const BASE_PATH = window.APP_BASE_PATH || '';
+    const API_BASE = window.APP_API_BASE || (BASE_PATH + '/api');
+    const LIST_URL = (BASE_PATH || '') + '/requests/list.php';
 
     function createRow(item = {}) {
         const tr = document.createElement('tr');
@@ -26,7 +29,7 @@ if (editor) {
     addItemButton?.addEventListener('click', () => itemsBody.appendChild(createRow()));
 
     async function loadRequest() {
-        const response = await fetch(`/finanses/public/api/requests.php?id=${requestId}`);
+        const response = await fetch(`${API_BASE}/requests.php?id=${requestId}`);
         const data = await response.json();
         if (!data.ok) throw data.error;
         const { request, items } = data.data;
@@ -63,13 +66,13 @@ if (editor) {
     async function submit(status) {
         try {
             const payload = serialize(status);
-            const data = await window.App.request(`/finanses/public/api/requests.php?id=${requestId}`, {
+            const data = await window.App.request(`requests.php?id=${requestId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
             });
             window.App.toast('Заявка обновлена', 'success');
-            window.location.href = '/finanses/public/requests/list.php';
+            window.location.href = LIST_URL;
         } catch (error) {
             window.App.toast(typeof error === 'string' ? error : 'Ошибка обновления', 'danger');
         }

@@ -1,11 +1,13 @@
 <?php
 require_once __DIR__ . '/../../bootstrap.php';
+
+use Finanses\Helpers;
+
 if (empty($_SESSION['user'])) {
-    header('Location: /finanses/public/login.php');
-    exit;
+    Helpers::redirect(Helpers::asset('login.php'));
 }
 $title = 'Файлы';
-$csrf = Finanses\Helpers::csrfToken();
+$csrf = Helpers::csrfToken();
 ob_start();
 ?>
 <h1 class="h3 mb-4">Прикрепленные файлы</h1>
@@ -44,7 +46,7 @@ ob_start();
         </table>
     </div>
 </div>
-<script src="/finanses/public/js/files.js"></script>
+<script src="<?= htmlspecialchars(Helpers::asset('js/files.js')) ?>"></script>
 <?php
 $content = ob_get_clean();
 include __DIR__ . '/../../views/layout.php';

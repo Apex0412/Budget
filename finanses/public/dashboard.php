@@ -1,8 +1,10 @@
 <?php
 require_once __DIR__ . '/../bootstrap.php';
+
+use Finanses\Helpers;
+
 if (empty($_SESSION['user'])) {
-    header('Location: /finanses/public/login.php');
-    exit;
+    Helpers::redirect(Helpers::asset('login.php'));
 }
 $title = 'Панель';
 ob_start();
@@ -12,7 +14,7 @@ ob_start();
         <h1 class="h3">Добро пожаловать, <?= htmlspecialchars($_SESSION['user']['fio']) ?></h1>
         <p class="text-body-secondary mb-0">Ваша роль: <?= htmlspecialchars($_SESSION['user']['role']) ?></p>
     </div>
-    <a class="btn btn-primary" href="/finanses/public/requests/create.php">Создать заявку</a>
+    <a class="btn btn-primary" href="<?= htmlspecialchars(Helpers::asset('requests/create.php')) ?>">Создать заявку</a>
 </div>
 <div class="row g-3" id="kpiCards">
     <div class="col-md-3">
@@ -51,7 +53,7 @@ ob_start();
 <div class="card mt-4 shadow-sm">
     <div class="card-header d-flex justify-content-between align-items-center">
         <span>Последние заявки</span>
-        <a href="/finanses/public/requests/list.php" class="btn btn-sm btn-outline-primary">Все заявки</a>
+        <a href="<?= htmlspecialchars(Helpers::asset('requests/list.php')) ?>" class="btn btn-sm btn-outline-primary">Все заявки</a>
     </div>
     <div class="table-responsive">
         <table class="table table-hover mb-0" id="recentRequests">
@@ -68,7 +70,7 @@ ob_start();
         </table>
     </div>
 </div>
-<script src="/finanses/public/js/dashboard.js"></script>
+<script src="<?= htmlspecialchars(Helpers::asset('js/dashboard.js')) ?>"></script>
 <?php
 $content = ob_get_clean();
 include __DIR__ . '/../views/layout.php';

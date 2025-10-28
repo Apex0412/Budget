@@ -1,11 +1,13 @@
 <?php
 require_once __DIR__ . '/../../bootstrap.php';
+
+use Finanses\Helpers;
+
 if (empty($_SESSION['user']) || $_SESSION['user']['role'] !== 'admin') {
-    header('Location: /finanses/public/login.php');
-    exit;
+    Helpers::redirect(Helpers::asset('login.php'));
 }
 $title = 'Пользователи';
-$csrf = Finanses\Helpers::csrfToken();
+$csrf = Helpers::csrfToken();
 ob_start();
 ?>
 <h1 class="h3 mb-4">Управление пользователями</h1>
@@ -80,7 +82,7 @@ ob_start();
         </div>
     </div>
 </div>
-<script src="/finanses/public/js/admin-users.js"></script>
+<script src="<?= htmlspecialchars(Helpers::asset('js/admin-users.js')) ?>"></script>
 <?php
 $content = ob_get_clean();
 include __DIR__ . '/../../views/layout.php';
