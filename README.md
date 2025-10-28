@@ -134,7 +134,7 @@ php database/cli.php migrate
 php database/cli.php seed
 ```
 
-**Шаг 8.** Проверьте запуск: откройте http://localhost/finanses.
+**Шаг 8.** Проверьте запуск: откройте http://localhost/finanses/public.
 
 **Мини-траблшутинг:**
 - Порт 80 занят → в XAMPP настройте Apache на 8080 (Config → httpd.conf → `Listen 8080`).
@@ -218,7 +218,7 @@ sudo a2enmod rewrite
 sudo systemctl reload apache2
 ```
 
-**Шаг 11.** Проверьте http://localhost/finanses.
+**Шаг 11.** Проверьте http://localhost/finanses/public.
 
 **Мини-траблшутинг:**
 - Ошибка `HCS_E_SERVICE_NOT_AVAILABLE` → проверьте включенные компоненты Windows (см. Шаг 1).
@@ -391,7 +391,7 @@ I18N_DEFAULT=ru
 ```bash
 APP_ENV=local
 APP_DEBUG=true
-APP_URL=http://localhost/finanses
+APP_URL=http://localhost/finanses/public
 SESSION_NAME=finanses_session
 SESSION_LIFETIME=1800
 USE_JWT=false
@@ -472,7 +472,7 @@ make db-restore FILE=backups/file.sql
 ---
 
 ## ✅ Проверка после установки
-1. Откройте http://localhost:8080 (или http://localhost/finanses).
+1. Откройте http://localhost:8080 (или http://localhost/finanses/public).
 2. Войдите как `admin` / `admin123` → система потребует сменить пароль.
 3. Создайте заявку с несколькими позициями, прикрепите файл → статус «Черновик»/«Отправлена».
 4. Скачайте PDF (кнопка «PDF»), экспортируйте CSV/XLSX.

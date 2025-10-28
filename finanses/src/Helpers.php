@@ -86,12 +86,32 @@ class Helpers
             return self::$basePath;
         }
 
-        $appUrl = Config::get('app_url', '');
         $path = '';
-        if ($appUrl !== '') {
-            $parsed = parse_url($appUrl, PHP_URL_PATH);
-            if (is_string($parsed)) {
-                $path = rtrim($parsed, '/');
+
+        $projectRoot = dirname(__DIR__, 1);
+        $publicRealPath = realpath($projectRoot . '/public');
+        $documentRoot = $_SERVER['DOCUMENT_ROOT'] ?? '';
+        $documentRootReal = $documentRoot !== '' ? realpath($documentRoot) : false;
+
+        if ($publicRealPath && $documentRootReal && strpos($publicRealPath, $documentRootReal) === 0) {
+            $relative = trim(str_replace('\\', '/', substr($publicRealPath, strlen($documentRootReal))), '/');
+            $path = $relative === '' ? '' : '/' . $relative;
+        }
+
+        if ($path === '') {
+            $appUrl = Config::get('app_url', '');
+            if ($appUrl !== '') {
+                $parsed = parse_url($appUrl, PHP_URL_PATH);
+                if (is_string($parsed)) {
+                    $parsed = rtrim($parsed, '/');
+                    if ($parsed !== '' && ($pos = strpos($parsed, '/public')) !== false) {
+                        $parsed = substr($parsed, 0, $pos + strlen('/public'));
+                    }
+                    if ($parsed === '/' || $parsed === '.' || $parsed === '\\') {
+                        $parsed = '';
+                    }
+                    $path = $parsed;
+                }
             }
         }
 
