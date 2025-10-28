@@ -7,6 +7,7 @@ use Dotenv\Dotenv;
 class Config
 {
     private static array $config = [];
+    private static string $basePath = '';
 
     public static function load(string $basePath): void
     {
@@ -14,16 +15,20 @@ class Config
             return;
         }
 
-        $envFile = $basePath . '/.env';
+        $realBase = realpath($basePath) ?: $basePath;
+        self::$basePath = rtrim(str_replace(['\\', '/'], DIRECTORY_SEPARATOR, $realBase), DIRECTORY_SEPARATOR);
+
+        $envFile = self::$basePath . '/.env';
         if (is_readable($envFile)) {
-            $dotenv = Dotenv::createImmutable($basePath);
+            $dotenv = Dotenv::createImmutable(self::$basePath);
             $dotenv->safeLoad();
-        } elseif (is_readable($basePath . '/.env.example')) {
-            $dotenv = Dotenv::createImmutable($basePath, ['.env.example']);
+        } elseif (is_readable(self::$basePath . '/.env.example')) {
+            $dotenv = Dotenv::createImmutable(self::$basePath, ['.env.example']);
             $dotenv->safeLoad();
         }
 
         self::$config = [
+            'base_path' => self::$basePath,
             'app_env' => $_ENV['APP_ENV'] ?? 'prod',
             'app_debug' => filter_var($_ENV['APP_DEBUG'] ?? false, FILTER_VALIDATE_BOOL),
             'app_url' => rtrim($_ENV['APP_URL'] ?? 'http://localhost', '/'),
@@ -78,5 +83,14 @@ class Config
         }
 
         return $value;
+    }
+
+    public static function basePath(): string
+    {
+        if (self::$basePath !== '') {
+            return self::$basePath;
+        }
+
+        return dirname(__DIR__);
     }
 }

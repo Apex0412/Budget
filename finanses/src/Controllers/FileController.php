@@ -35,8 +35,7 @@ class FileController
         $allowed = Config::getNested('upload.allowed_mime', []);
         $maxSize = Config::getNested('upload.max_size', 5 * 1024 * 1024);
         $storage = Config::getNested('paths.files', 'storage/uploads');
-        $basePath = dirname(__DIR__, 2);
-        $dir = rtrim($basePath . '/' . trim($storage, '/'), '/') . '/' . $requestId;
+        $dir = Helpers::projectPath(trim($storage, "\\/") . '/' . $requestId);
         if (!is_dir($dir)) {
             mkdir($dir, 0775, true);
         }
@@ -60,14 +59,14 @@ class FileController
             }
             $ext = pathinfo($name, PATHINFO_EXTENSION);
             $filename = uniqid('req_' . $requestId . '_', true) . '.' . $ext;
-            $destination = $dir . '/' . $filename;
+            $destination = rtrim($dir, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $filename;
             if (!move_uploaded_file($tmpName, $destination)) {
                 continue;
             }
             chmod($destination, 0664);
             $insert->execute([
                 'request_id' => $requestId,
-                'path' => str_replace($basePath . '/', '', $destination),
+                'path' => Helpers::relativeProjectPath($destination),
                 'original_name' => $name,
                 'mime_type' => $mime,
                 'size' => $size,
@@ -100,8 +99,7 @@ class FileController
             Helpers::jsonResponse(['ok' => false, 'error' => 'CSRF token mismatch'], 419);
         }
 
-        $basePath = dirname(__DIR__, 2);
-        $fullPath = $basePath . '/' . ltrim($file['path'], '/');
+        $fullPath = Helpers::projectPath($file['path']);
         if (is_file($fullPath)) {
             unlink($fullPath);
         }

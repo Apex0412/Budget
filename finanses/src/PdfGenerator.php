@@ -36,13 +36,11 @@ class PdfGenerator
         $serviceObjects = json_decode($request['service_objects'] ?? '[]', true) ?: [];
 
         $pdfDir = Config::getNested('paths.pdf', 'storage/pdf');
-        $basePath = dirname(__DIR__, 1);
-        $root = dirname($basePath);
-        $dir = rtrim($root . '/' . trim($pdfDir, '/'), '/');
+        $dir = Helpers::projectPath(trim($pdfDir, "\\/"));
         if (!is_dir($dir)) {
             mkdir($dir, 0775, true);
         }
-        $filePath = $dir . '/request_' . $requestId . '.pdf';
+        $filePath = rtrim($dir, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'request_' . $requestId . '.pdf';
 
         $mpdf = new Mpdf(['mode' => 'utf-8', 'format' => 'A4']);
         $mpdf->SetTitle('Обоснование к закупке №' . $requestId);
@@ -58,7 +56,7 @@ class PdfGenerator
                 'action' => 'generate_pdf',
                 'entity' => 'requests',
                 'entity_id' => $requestId,
-                'meta' => json_encode(['file' => str_replace($root . '/', '', $filePath)], JSON_UNESCAPED_UNICODE),
+                'meta' => json_encode(['file' => Helpers::relativeProjectPath($filePath)], JSON_UNESCAPED_UNICODE),
                 'ip' => Helpers::getClientIp(),
             ]);
 

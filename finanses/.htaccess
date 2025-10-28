@@ -1,0 +1,20 @@
+Options -Indexes
+
+<IfModule mod_rewrite.c>
+RewriteEngine On
+
+# Allow direct access to already public assets
+RewriteRule ^public/ - [L]
+
+# Serve existing files and directories as-is
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Forward everything else to the public directory
+RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
+
+<FilesMatch "(?i)\\.(env|sql|log|ya?ml)$">
+  Require all denied
+</FilesMatch>

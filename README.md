@@ -467,6 +467,7 @@ make db-restore FILE=backups/file.sql
 | Отсутствует `ext-gd`/`ext-intl` | Пересоберите Docker (`docker compose build --no-cache`) или установите пакеты PHP (`apt install php8.2-gd intl`). |
 | Healthcheck не проходит | `docker compose logs -f app db` → проверьте подключение к БД и `.env`. |
 | Не грузятся стили | Проверьте `AllowOverride All` и `mod_rewrite`. |
+| 404 вместо стартовой страницы | Убедитесь, что `.htaccess` в корне проекта активен. Он перенаправляет в `public/`. При отключённом mod_rewrite откройте `http://localhost/finanses/public`. |
 | Upload не работает | Убедитесь, что каталог `storage/uploads` имеет права 775 и `.htaccess` запрещает выполнение PHP. |
 
 ---
