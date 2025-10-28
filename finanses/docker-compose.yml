@@ -1,0 +1,37 @@
+services:
+  db:
+    image: mysql:8
+    container_name: finanses-db
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: finanses
+      MYSQL_USER: finanses
+      MYSQL_PASSWORD: finanses
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -proot || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  app:
+    build: .
+    container_name: finanses-app
+    ports:
+      - "8080:80"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost/api/health.php?type=app || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 40
+    # volumes:
+    #   - ./:/var/www/html
+
+volumes:
+  db_data:

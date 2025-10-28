@@ -1,0 +1,10 @@
+body[data-bs-theme="dark"] {
+    background-color: #0b1623;
+}
+.table td, .table th {
+    vertical-align: middle;
+}
+.badge-priority-normal { background-color: #adb5bd; }
+.badge-priority-urgent { background-color: #f6c343; }
+.badge-priority-critical { background-color: #dc3545; }
+.status-badge { font-weight: 600; text-transform: uppercase; }

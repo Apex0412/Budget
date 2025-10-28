@@ -1,0 +1,32 @@
+{
+    "name": "mbu/finanses",
+    "description": "FINANSES procurement request management system",
+    "type": "project",
+    "require": {
+        "php": "^8.2",
+        "ext-bcmath": "*",
+        "ext-exif": "*",
+        "ext-gd": "*",
+        "ext-intl": "*",
+        "ext-mbstring": "*",
+        "ext-soap": "*",
+        "ext-zip": "*",
+        "vlucas/phpdotenv": "^5.5",
+        "mpdf/mpdf": "^8.2"
+    },
+    "suggest": {
+        "ext-gmp": "Ускоряет работу с большими числами, рекомендуется включить при доступности",
+        "ext-pcntl": "Нужен для продвинутых CLI-сценариев на Linux/Unix",
+        "ext-sodium": "Рекомендуется для дополнительной криптографической защиты"
+    },
+    "autoload": {
+        "psr-4": {
+            "Finanses\\": "src/"
+        }
+    },
+    "scripts": {
+        "post-autoload-dump": [
+            "@php -r \"file_exists('config/cache') || mkdir('config/cache', 0775, true);\""
+        ]
+    }
+}
